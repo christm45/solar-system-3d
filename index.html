@@ -1637,7 +1637,7 @@ const PLANETS=[
   atmo:{s:1.09,c:'#6ab7ff',i:1.15},moonTilt:0.09,
   moons:[{r:0.42,d:3.6,sp:EARTH_ROT/27.3,tex:moonDetailG,lock:true,slow:true,label:true}]},
  {name:'Mars',r:1.15,d:42,tilt:0.44,inc:0.032,rot:0.115,map:texMars(),atmo:{s:1.06,c:'#d8a07a',i:0.4}},
- {name:'Jupiter',r:4.6,d:60,tilt:0.054,inc:0.023,rot:0.28,map:texJupiter(),moons:[{r:0.36,d:6.8,sp:0.8,lock:true},{r:0.3,d:8.4,sp:0.55,lock:true}]},
+ {name:'Jupiter',r:4.6,d:66,tilt:0.054,inc:0.023,rot:0.28,map:texJupiter(),moons:[{r:0.36,d:6.8,sp:0.8,lock:true},{r:0.3,d:8.4,sp:0.55,lock:true}]},
  {name:'Saturne',r:3.9,d:78,tilt:0.47,inc:0.043,rot:0.26,map:texSaturn(),ring:{i:5.0,o:8.9,tex:saturnRingTex}},
  {name:'Uranus',r:2.5,d:94,tilt:1.71,inc:0.013,rot:-0.18,map:texUranus(),ring:{i:3.3,o:4.4,tex:uranusRingTex},atmo:{s:1.08,c:'#9fe0e0',i:0.45}},
  {name:'Neptune',r:2.4,d:108,tilt:0.49,inc:0.031,rot:0.17,map:texNeptune(),atmo:{s:1.08,c:'#5a7fe8',i:0.5}}
@@ -1753,7 +1753,7 @@ const rockGeos=[new THREE.IcosahedronGeometry(1.0,0),new THREE.DodecahedronGeome
   new THREE.OctahedronGeometry(0.6,0),new THREE.TetrahedronGeometry(0.9,0),
   new THREE.IcosahedronGeometry(0.7,1)];
 function rockMatSet(cols,rough){ return cols.map(c=>new THREE.MeshStandardMaterial({color:c,roughness:rough,metalness:0.04})); }
-const rockyMats=rockMatSet([0x8a7358,0x9c8a6a,0x6f5c46,0xa89070,0x5c4a38],0.95);
+const rockyMats=rockMatSet([0x544635,0x605440,0x43382a,0x665844,0x382d22],0.95);
 function spawnRocks(list,count,r0,dr,eMax,incMax,szMin,szMax,mats){
   for(let i=0;i<count;i++){
     const grp=new THREE.Group();
@@ -1777,17 +1777,17 @@ const asteroidFlyingRocks=[];
 (function(){
   /* Belt kept strictly between Mars (42) and Jupiter (60) so no planet
      is ever buried inside the dust. */
-  const R0=46.0, R1=54.5, DR=R1-R0;
-  const spinIn=makeSpinBelt(46,1), spinMid=makeSpinBelt(51,1), spinOut=makeSpinBelt(56,1);
+  const R0=45.5, R1=53.0, DR=R1-R0;
+  const spinIn=makeSpinBelt(46,1), spinMid=makeSpinBelt(49,1), spinOut=makeSpinBelt(52,1);
   /* --- boundary rings --- */
   function ring(r,col,op){ const pts=[]; for(let i=0;i<256;i++){const a=i/256*TAU; pts.push(new THREE.Vector3(Math.cos(a)*r,0,Math.sin(a)*r));}
     const m=new THREE.LineBasicMaterial({color:col,transparent:true,opacity:op}); m._baseOpacity=op; sunLitMats.push(m);
     systemGroup.add(new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(pts),m)); }
-  ring(R0,0xccaa77,0.42); ring(51,0xbb9966,0.20); ring(R1,0xccaa77,0.34);
+  ring(R0,0xccaa77,0.21); ring(49,0xbb9966,0.10); ring(R1,0xccaa77,0.17);
 
   /* --- glowing dust discs: the belt reads as a real luminous band --- */
-  spinMid.add(beltGlowDisc(R0,R1,0x8a6a42,0.05));
-  spinMid.add(beltGlowDisc(R0+2,R1-2,0xa07a4a,0.04));
+  spinMid.add(beltGlowDisc(R0,R1,0x8a6a42,0.025));
+  spinMid.add(beltGlowDisc(R0+2,R1-2,0xa07a4a,0.02));
 
   /* --- layered rubble: bright specks → fine glowing dust --- */
   /* big bright chunks */
@@ -1799,74 +1799,41 @@ const asteroidFlyingRocks=[];
   geoBig.setAttribute('position',new THREE.BufferAttribute(posBig,3));
   geoBig.setAttribute('color',new THREE.BufferAttribute(colBig,3));
   const matBig=new THREE.PointsMaterial({size:0.85,sizeAttenuation:true,map:dotTexBright,transparent:true,
-    opacity:0.95,depthWrite:false,vertexColors:true,blending:THREE.AdditiveBlending,fog:false});
-  matBig._baseOpacity=0.95; sunLitMats.push(matBig);
+    opacity:0.48,depthWrite:false,vertexColors:true,blending:THREE.AdditiveBlending,fog:false});
+  matBig._baseOpacity=0.48; sunLitMats.push(matBig);
   spinMid.add(new THREE.Points(geoBig,matBig));
 
-  spinIn .add(beltPoints(9000, R0,DR, 2.6, 0.55, 0xe8d2ac, 0.80, dotTexMed));  /* medium rubble */
-  spinMid.add(beltPoints(16000,R0,DR, 3.2, 0.40, 0xd6bd94, 0.70));             /* small rocks   */
-  spinOut.add(beltPoints(26000,R0,DR, 4.0, 0.30, 0xc8a97e, 0.55));             /* fine gravel   */
-  spinMid.add(beltPoints(30000,R0,DR, 5.0, 0.22, 0xb89a74, 0.42, null, true)); /* glowing dust  */
+  spinIn .add(beltPoints(9000, R0,DR, 2.6, 0.55, 0xe8d2ac, 0.40, dotTexMed));  /* medium rubble */
+  spinMid.add(beltPoints(16000,R0,DR, 3.2, 0.40, 0xd6bd94, 0.35));             /* small rocks   */
+  spinOut.add(beltPoints(26000,R0,DR, 4.0, 0.30, 0xc8a97e, 0.28));             /* fine gravel   */
+  spinMid.add(beltPoints(30000,R0,DR, 5.0, 0.22, 0xb89a74, 0.21, null, true)); /* glowing dust  */
 
   /* Kirkwood-like density clumps so the belt is not a uniform smear */
-  for(let k=0;k<5;k++){ spinIn.add(beltPoints(2600, R0+0.6+k*2.3, 1.6, 2.0, 0.34, 0xf0d8ae, 0.55)); }
+  for(let k=0;k<5;k++){ spinIn.add(beltPoints(2600, R0+0.6+k*2.3, 1.6, 2.0, 0.34, 0xf0d8ae, 0.28)); }
 
   /* --- 3D flying rocks through the main belt --- */
   spawnRocks(asteroidFlyingRocks,260, R0,DR, 0.14, 0.24, 0.22, 0.75, rockyMats);
   /* a few large named-scale boulders */
   spawnRocks(asteroidFlyingRocks, 34, R0+1,DR-2, 0.10, 0.16, 0.85, 1.6, rockyMats);
 
-  const lb=makeLabel("Ceinture d'astéroïdes"); lb.scale.set(22,2.75,1); lb.position.set(50,8,0); systemGroup.add(lb);
+  const lb=makeLabel("Ceinture d'astéroïdes"); lb.scale.set(22,2.75,1); lb.position.set(49,8,0); systemGroup.add(lb);
 
   /* Ceres */
-  const ceres=meshSphere(0.75,0xd8c9a2); ceres.position.set(50,0.3,0); systemGroup.add(ceres);
+  const ceres=meshSphere(0.75,0xd8c9a2); ceres.position.set(49,0.3,0); systemGroup.add(ceres);
   const cLabel=makeLabel('Cérès'); cLabel.scale.set(6,0.75,1); cLabel.position.y=1.8; ceres.add(cLabel);
-  dwarfPlanets.push({mesh:ceres,a:rnd()*TAU,d:50,speed:0.046*Math.pow(34/50,0.9),inc:0.0});
+  dwarfPlanets.push({mesh:ceres,a:rnd()*TAU,d:49,speed:0.046*Math.pow(34/49,0.9),inc:0.0});
   /* Vesta & Pallas — the other big belt bodies */
   const vesta=meshSphere(0.5,0xc9b894); systemGroup.add(vesta);
   const vLabel=makeLabel('Vesta'); vLabel.scale.set(6,0.75,1); vLabel.position.y=1.5; vesta.add(vLabel);
-  dwarfPlanets.push({mesh:vesta,a:rnd()*TAU,d:47.5,speed:0.046*Math.pow(34/47.5,0.9),inc:0.0});
+  dwarfPlanets.push({mesh:vesta,a:rnd()*TAU,d:46.5,speed:0.046*Math.pow(34/46.5,0.9),inc:0.0});
   const pallas=meshSphere(0.46,0xb5ab9a); systemGroup.add(pallas);
   const pLabel=makeLabel('Pallas'); pLabel.scale.set(6,0.75,1); pLabel.position.y=1.4; pallas.add(pLabel);
-  dwarfPlanets.push({mesh:pallas,a:rnd()*TAU,d:53,speed:0.046*Math.pow(34/53,0.9),inc:0.0});
+  dwarfPlanets.push({mesh:pallas,a:rnd()*TAU,d:52,speed:0.046*Math.pow(34/52,0.9),inc:0.0});
 })();
 
-/* ---- INNER DUST / METEOROID BELT between Earth (34) and Mars (42) ---- */
+/* (No belt between Earth and Mars — the only rocky belt is the real one,
+   between Mars and Jupiter. The Moon's orbit therefore stays clear.) */
 const innerFlyingRocks=[];
-(function(){
-  const R0=36.6, R1=39.6, DR=R1-R0;
-  const spinI=makeSpinBelt(38,1);
-  function ring(r,col,op){ const pts=[]; for(let i=0;i<256;i++){const a=i/256*TAU; pts.push(new THREE.Vector3(Math.cos(a)*r,0,Math.sin(a)*r));}
-    const m=new THREE.LineBasicMaterial({color:col,transparent:true,opacity:op}); m._baseOpacity=op; sunLitMats.push(m);
-    systemGroup.add(new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(pts),m)); }
-  ring(R0,0xddaa88,0.26); ring(R1,0xddaa88,0.24);
-
-  /* zodiacal-light style glowing band */
-  spinI.add(beltGlowDisc(R0,R1,0xa06a44,0.05));
-
-  /* bright meteoroids */
-  const Nm=1100,posM=new Float32Array(Nm*3),colM=new Float32Array(Nm*3);
-  for(let i=0;i<Nm;i++){const a=rnd()*TAU,r=R0+rnd()*DR;
-    posM[i*3]=Math.cos(a)*r; posM[i*3+1]=((rnd()-0.5)+(rnd()-0.5))*0.8; posM[i*3+2]=Math.sin(a)*r;
-    const warm=0.8+rnd()*0.4; colM[i*3]=warm; colM[i*3+1]=warm*0.82; colM[i*3+2]=warm*0.62;}
-  const gM=new THREE.BufferGeometry();
-  gM.setAttribute('position',new THREE.BufferAttribute(posM,3));
-  gM.setAttribute('color',new THREE.BufferAttribute(colM,3));
-  const mM=new THREE.PointsMaterial({size:0.62,sizeAttenuation:true,map:dotTexBright,transparent:true,
-    opacity:0.9,depthWrite:false,vertexColors:true,blending:THREE.AdditiveBlending,fog:false});
-  mM._baseOpacity=0.9; sunLitMats.push(mM);
-  spinI.add(new THREE.Points(gM,mM));
-
-  spinI.add(beltPoints(7000, R0,DR, 1.5, 0.42, 0xe6c9a4, 0.70, dotTexMed));
-  spinI.add(beltPoints(12000,R0,DR, 2.0, 0.30, 0xd8b892, 0.55));
-  spinI.add(beltPoints(16000,R0,DR, 2.6, 0.22, 0xc0a078, 0.40, null, true));
-
-  /* real tumbling meteoroids */
-  spawnRocks(innerFlyingRocks,110, R0,DR, 0.10, 0.16, 0.15, 0.45, rockyMats);
-
-  const lb=makeLabel('Ceinture de météoroïdes');
-  lb.scale.set(18,2.25,1); lb.position.set(-38,5.5,0); systemGroup.add(lb);
-})();
 
 /* ---- KUIPER BELT: dense, bright, rock-filled belt (116 → 160) ---- */
 const kuiperFlyingRocks=[];
