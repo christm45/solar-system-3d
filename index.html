@@ -1,0 +1,3284 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+<title>Univers profond v19 — SkyMap zoomable + lentille gravitationnelle + M13 3D</title>
+<style>
+  html,body{margin:0;padding:0;height:100%;overflow:hidden;background:#04060d;font-family:'Segoe UI',system-ui,-apple-system,sans-serif;-webkit-overflow-scrolling:touch;overscroll-behavior:none;-webkit-tap-highlight-color:transparent;}
+  canvas{display:block;touch-action:none;}
+  #ui{position:fixed;top:18px;left:18px;z-index:10;color:#dfe6f5;transition:opacity .18s ease, transform .18s ease;}
+  #ui.hidden{opacity:0;transform:translateX(-16px);pointer-events:none;}
+  #uiToggle{position:fixed;bottom:18px;left:18px;z-index:16;}
+  .panel{background:rgba(8,12,24,.62);border:1px solid rgba(140,170,255,.18);border-radius:16px;padding:16px 18px;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);box-shadow:0 8px 32px rgba(0,0,0,.45);max-width:400px;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;}
+  h1{margin:0 0 4px;font-size:17px;letter-spacing:.4px;}
+  .sub{margin:0 0 12px;font-size:11.5px;color:#9fb0d0;line-height:1.5;}
+  .btnrow{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;}
+  .btnrow button{flex:1 1 22%;padding:8px 6px;border-radius:9px;cursor:pointer;font-size:11px;font-weight:600;color:#cfd9f0;background:rgba(120,140,190,.16);border:1px solid rgba(140,170,255,.2);transition:all .15s;}
+  .btnrow button:hover{background:rgba(140,170,255,.28);}
+  .btnrow button.active{color:#0a1226;background:linear-gradient(135deg,#8fb4ff,#c9a2ff);border-color:transparent;}
+  .row{display:flex;align-items:center;gap:10px;margin-top:8px;font-size:12.5px;color:#b9c6e2;}
+  .row input[type=range]{flex:1;accent-color:#8fb4ff;}
+  #speedVal,#sunVal,#moonVal{min-width:44px;text-align:right;font-variant-numeric:tabular-nums;color:#e8efff;font-weight:600;}
+  .hint{margin:12px 0 0;font-size:10.5px;color:#7787a8;line-height:1.6;}
+  #earthHud{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);z-index:10;display:none;color:#dfe6f5;}
+  #timePanel{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);z-index:10;display:none;color:#dfe6f5;text-align:center;}
+  #tourPanel{position:fixed;top:18px;left:50%;transform:translateX(-50%);z-index:11;display:none;max-width:580px;color:#dfe6f5;}
+  .panel.small{padding:10px 18px;font-size:12.5px;max-width:640px;}
+  .panel.small .note{margin-top:6px;font-size:10.5px;color:#8fa0c0;line-height:1.5;}
+  #fisheyeTools{position:fixed;right:18px;bottom:18px;z-index:10;display:none;color:#dfe6f5;padding:10px 12px;}
+  #allsky{position:fixed;inset:0;z-index:6;display:none;}
+  .chip{padding:6px 10px;margin:2px;border-radius:20px;border:1px solid rgba(140,170,255,.25);background:rgba(120,140,190,.12);color:#9fb0d0;font-size:11px;cursor:pointer;}
+  .chip.on{background:rgba(140,170,255,.35);color:#fff;}
+  #tip{position:fixed;z-index:12;display:none;pointer-events:none;background:rgba(10,14,28,.92);border:1px solid rgba(140,170,255,.3);border-radius:10px;padding:8px 12px;font-size:11.5px;color:#dfe6f5;line-height:1.5;}
+  #objInfo{position:fixed;left:18px;bottom:64px;z-index:10;display:none;max-width:330px;color:#dfe6f5;}
+  #errToast{position:fixed;top:10px;left:50%;transform:translateX(-50%);z-index:99;display:none;background:#40121a;color:#ffb4b4;border:1px solid #ff6b6b;padding:8px 14px;border-radius:10px;font-size:12px;font-family:monospace;max-width:80vw;}
+  #loading{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#04060d;color:#9fb0d0;z-index:50;font-size:14px;letter-spacing:1px;}
+  /* External overlay removed — SkyMap is built-in */
+
+  /* ===== NIGHT MODE ===== */
+  body.night-mode #allsky{filter:saturate(0.15) brightness(0.7) sepia(0.3) hue-rotate(-10deg);}
+  body.night-mode .panel{background:rgba(30,8,8,.72);border-color:rgba(255,80,80,.2);}
+  body.night-mode h1{color:#ff9090;}
+  body.night-mode .sub,.body.night-mode .hint{color:#cc8080;}
+  body.night-mode .btnrow button{color:#cc8888;background:rgba(200,80,80,.12);border-color:rgba(255,100,100,.2);}
+  body.night-mode .btnrow button:hover{background:rgba(255,80,80,.22);}
+  body.night-mode .btnrow button.active{color:#1a0808;background:linear-gradient(135deg,#ff6666,#ff4444);border-color:transparent;}
+  body.night-mode .chip{color:#cc8888;border-color:rgba(255,100,100,.25);background:rgba(200,80,80,.12);}
+  body.night-mode .chip.on{background:rgba(255,80,80,.3);color:#ffcccc;}
+  body.night-mode input[type=range]{accent-color:#ff6666;}
+  body.night-mode #tip{background:rgba(40,8,8,.92);border-color:rgba(255,80,80,.3);color:#ffcccc;}
+  body.night-mode #objInfo{color:#ffcccc;}
+  body.night-mode #earthHud .panel.small{background:rgba(30,8,8,.72);border-color:rgba(255,80,80,.2);color:#ffcccc;}
+  body.night-mode #timePanel .panel.small{background:rgba(30,8,8,.72);border-color:rgba(255,80,80,.2);color:#ffcccc;}
+  body.night-mode #tourPanel .panel.small{background:rgba(30,8,8,.72);border-color:rgba(255,80,80,.2);color:#ffcccc;}
+  body.night-mode #fisheyeTools .panel{background:rgba(30,8,8,.72);border-color:rgba(255,80,80,.2);}
+
+  /* ===== SEARCH BAR ===== */
+  #searchPanel{position:fixed;top:18px;right:18px;z-index:15;display:none;max-width:340px;width:88vw;}
+  #searchPanel .panel{padding:12px 14px;}
+  #searchPanel input{width:100%;padding:9px 12px;border-radius:9px;border:1px solid rgba(140,170,255,.25);background:rgba(12,18,36,.85);color:#dfe6f5;font-size:13px;outline:none;box-sizing:border-box;}
+  #searchPanel input::placeholder{color:#6677a0;}
+  #searchPanel input:focus{border-color:rgba(140,170,255,.5);}
+  #searchResults{max-height:260px;overflow-y:auto;margin-top:8px;scrollbar-width:thin;scrollbar-color:rgba(140,170,255,.25) transparent;}
+  .search-item{padding:7px 10px;border-radius:7px;cursor:pointer;font-size:12px;color:#b9c6e2;display:flex;justify-content:space-between;align-items:center;transition:background .12s;}
+  .search-item:hover{background:rgba(140,170,255,.18);}
+  .search-item .si-type{font-size:10px;color:#7787a8;padding:2px 6px;border-radius:10px;background:rgba(100,120,180,.15);}
+
+  /* ===== NIGHT MODE TOGGLE ===== */
+  #nightBtn{position:fixed;bottom:60px;right:18px;z-index:12;}
+  body.night-mode #nightBtn{filter:none;}
+
+  /* ===== ORIENTATION INDICATOR ===== */
+  #orientInd{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:20;pointer-events:none;display:none;width:80px;height:80px;border:2px solid rgba(140,170,255,.35);border-radius:50%;}
+  #orientInd::before{content:'';position:absolute;top:50%;left:50%;width:6px;height:6px;background:#8fb4ff;border-radius:50%;transform:translate(-50%,-50%);}
+  #orientInd .or-cross{position:absolute;background:rgba(140,170,255,.3);}
+  #orientInd .or-h{width:100%;height:1px;top:50%;}
+  #orientInd .or-v{width:1px;height:100%;left:50%;}
+
+  /* ===== RESPONSIVE — TABLET ===== */
+  @media(max-width:900px){
+    #ui{top:10px;left:10px;}
+    .panel{padding:12px 14px;border-radius:13px;max-width:340px;}
+    h1{font-size:15px;}
+    .sub{font-size:11px;}
+    .btnrow button{padding:7px 5px;font-size:10.5px;}
+    #earthHud{bottom:10px;}
+    #timePanel{bottom:10px;}
+    #tourPanel{top:10px;max-width:95vw;}
+    #fisheyeTools{right:10px;bottom:10px;}
+    #objInfo{left:10px;bottom:58px;max-width:280px;}
+    #searchPanel{top:10px;right:10px;}
+  }
+
+  /* ===== RESPONSIVE — PHONE ===== */
+  @media(max-width:600px){
+    #ui{top:8px;left:8px;right:8px;}
+    .panel{padding:10px 12px;border-radius:11px;max-width:calc(100vw - 16px);max-height:65vh;overflow-y:auto;scrollbar-width:thin;scrollbar-color:rgba(140,170,255,.2) transparent;}
+    h1{font-size:14px;letter-spacing:.2px;}
+    .sub{font-size:10.5px;margin-bottom:8px;line-height:1.4;}
+    .btnrow{gap:4px;margin-bottom:8px;}
+    .btnrow button{flex:1 1 30%;padding:10px 4px;font-size:10px;min-height:38px;border-radius:8px;}
+    .btnrow button:active{transform:scale(0.95);}
+    .row{font-size:11.5px;gap:7px;margin-top:6px;}
+    .row label{min-width:0;white-space:nowrap;}
+    input[type=range]{height:28px;}
+    .hint{font-size:10px;margin-top:8px;line-height:1.45;}
+    #earthHud{bottom:8px;left:8px;right:8px;transform:none;}
+    #earthHud .panel.small{padding:8px 12px;font-size:11.5px;}
+    #timePanel{bottom:8px;left:8px;right:8px;transform:none;text-align:center;}
+    #timePanel .panel.small{padding:8px 12px;}
+    #timePanel .note{font-size:10px;}
+    #tourPanel{top:8px;left:8px;right:8px;transform:none;max-width:calc(100vw - 16px);}
+    #tourPanel .panel.small{padding:10px 12px;}
+    #tourPanel .panel.small #tourCap{font-size:12px;}
+    #fisheyeTools{right:8px;bottom:8px;left:8px;}
+    #fisheyeTools .panel{padding:8px 10px;display:flex;flex-wrap:wrap;gap:4px;justify-content:center;}
+    #fisheyeTools .chip{font-size:10px;padding:5px 8px;}
+    #objInfo{left:8px;right:8px;bottom:56px;max-width:calc(100vw - 16px);transform:none;}
+    #objInfo .panel{padding:10px 12px;font-size:12px;}
+    #tip{font-size:10.5px;padding:6px 10px;max-width:calc(100vw - 40px);}
+    #searchPanel{top:8px;right:8px;left:8px;max-width:calc(100vw - 16px);width:auto;}
+    #nightBtn{bottom:60px;right:8px;}
+    #nightBtn .chip{padding:8px 10px;font-size:11px;}
+    #extBar{flex-wrap:wrap;gap:6px;padding:6px 10px;}
+    #extBar .note2{display:none;}
+    #errToast{font-size:11px;padding:6px 12px;max-width:90vw;}
+    canvas#allsky{touch-action:none;}
+  }
+
+  /* ===== RESPONSIVE — VERY SMALL PHONE ===== */
+  @media(max-width:380px){
+    .panel{padding:8px 10px;max-height:58vh;}
+    h1{font-size:13px;}
+    .sub{font-size:10px;}
+    .btnrow{gap:3px;}
+    .btnrow button{flex:1 1 44%;padding:9px 3px;font-size:9.5px;min-height:36px;}
+    .row{font-size:11px;}
+    #fisheyeTools .chip{font-size:9px;padding:4px 6px;}
+  }
+
+  /* ===== LANDSCAPE PHONE ===== */
+  @media(max-height:500px) and (orientation:landscape){
+    .panel{max-height:70vh;}
+    #ui{top:6px;left:6px;}
+    .btnrow button{padding:6px 4px;min-height:32px;}
+    #earthHud{bottom:6px;}
+    #timePanel{bottom:6px;}
+  }
+
+  /* ===== SAFE AREA (notched phones) ===== */
+  @supports(padding:max(0px)){
+    #ui{left:max(18px,env(safe-area-inset-left));top:max(18px,env(safe-area-inset-top));}
+    #earthHud{bottom:max(18px,env(safe-area-inset-bottom));}
+    #timePanel{bottom:max(18px,env(safe-area-inset-bottom));}
+    #fisheyeTools{bottom:max(18px,env(safe-area-inset-bottom));right:max(18px,env(safe-area-inset-right));}
+  }
+</style>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+}}
+</script>
+</head>
+<body>
+<div id="loading">Génération de l'Univers…</div>
+<div id="errToast"></div>
+<canvas id="allsky"></canvas>
+<div id="tip"></div>
+<div id="searchPanel" class="panel">
+  <input type="text" id="searchInput" placeholder="🔍 Rechercher étoile, planète, DSO…" autocomplete="off" />
+  <div id="searchResults"></div>
+</div>
+<button class="chip" id="nightBtn" title="Mode nuit (rouge)">🌙 Nuit</button>
+<div id="orientInd"><div class="or-cross or-h"></div><div class="or-cross or-v"></div></div>
+<div id="objInfo" class="panel"></div>
+<div id="fisheyeTools" class="panel">
+  <button class="chip on" id="fs-lines">Constellations</button><button class="chip on" id="fs-names">Noms</button><button class="chip on" id="fs-grid">Grille</button><button class="chip on" id="fs-mw">Voie lactée</button><button class="chip on" id="fs-ecl">Écliptique</button>
+</div>
+<div id="tourPanel">
+  <div class="panel small">
+    <div id="tourCap" style="font-size:13px;line-height:1.55"></div>
+    <div style="margin-top:8px">
+      <button class="chip" id="tourPrev">⏮ Préc.</button>
+      <button class="chip" id="tourNext">⏭ Suiv.</button>
+      <button class="chip" id="tourStop">✖ Quitter</button>
+      <span id="tourStep" style="font-size:10.5px;color:#8fa0c0;margin-left:8px"></span>
+    </div>
+  </div>
+</div>
+<!-- SkyMap intégré, pas besoin d'overlay externe -->
+<button class="chip" id="uiToggle" title="Masquer / afficher le menu (H)">✖ Menu</button>
+<div id="ui">
+  <div class="panel">
+    <h1>🌌 Univers profond — v18</h1>
+    <p class="sub">Notre Univers 3D + <b>SkyMap</b> (700+ étoiles, NGC/IC, planètes, constellations) en vue ciel complète hors-ligne</p>
+    <div class="btnrow">
+      <button id="btn-galaxy" class="active">🌌 Galaxie</button>
+      <button id="btn-system">🚀 Système solaire</button>
+      <button id="btn-earth">🌍 Terre &amp; Lune</button>
+      <button id="btn-bh">🕳️ Trou noir</button>
+      <button id="btn-m13">🔭 M13</button>
+      <button id="btn-cluster">🔭 Amas</button>
+      <button id="btn-skymap" class="active">🌠 SkyMap</button>
+    </div>
+    <div class="row" style="gap:6px">
+      <button class="chip on" id="btnTour" style="flex:1;text-align:center">🎬 Visite guidée</button>
+      <button class="chip" id="btnShot" style="flex:1;text-align:center">📸 Capture</button>
+    </div>
+    <div class="row">
+      <label for="sunlight">☀️ Soleil</label>
+      <input id="sunlight" type="range" min="0" max="300" step="2" value="100">
+      <span id="sunVal">100%</span>
+    </div>
+    <div class="row">
+      <label for="moonspd">🌙 Orbite lune</label>
+      <input id="moonspd" type="range" min="1" max="200" step="1" value="30">
+      <span id="moonVal">×30</span>
+    </div>
+    <div class="row">
+      <label for="speed">Vitesse</label>
+      <input id="speed" type="range" min="0" max="20" step="0.1" value="1.2">
+      <span id="speedVal">1.2×</span>
+    </div>
+    <p class="hint">🌠 SkyMap = planétarium complet hors-ligne (700+ étoiles, NGC/IC, planètes, constellation) · Molette/pincez pour zoomer<br>
+    ☄️ Confins : Kuiper → héliopause → nuage d'Oort + comète · 📱 Sur téléphone : touchez, pincez, utilisez 🧭 pour la boussole</p>
+  </div>
+</div>
+<div id="earthHud">
+  <div class="panel small">
+    🌍 Rotation de la Terre : <b><span id="dayCount">0</span> jour(s)</b> &nbsp;·&nbsp; 🌙 Lune : <b><span id="lunCount">0</span> lunaison(s)</b>
+    <div class="note">La Lune tourne sur elle-même en exactement une révolution : la même face (toujours éclairée depuis la Terre) reste en permanence tournée vers nous.</div>
+  </div>
+</div>
+<div id="timePanel">
+  <div class="panel small">
+    <div id="timeTxt" style="font-size:13.5px;font-weight:600"></div>
+    <div style="margin-top:8px">
+      <button class="chip" id="t-mh">−1 h</button><button class="chip" id="t-ph">+1 h</button>
+      <button class="chip" id="t-md">−1 j</button><button class="chip" id="t-pd">+1 j</button>
+      <button class="chip" id="t-night">🌙 Cette nuit</button><button class="chip" id="t-now">⏱ Maintenant</button>
+    </div>
+    <div class="note" id="skyInfo"></div>
+  </div>
+</div>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { Lensflare, LensflareElement } from 'three/addons/objects/Lensflare.js';
+
+let lastErr=0;
+function showError(msg){ const t=Date.now(); if(t-lastErr<3000) return; lastErr=t;
+  const el=document.getElementById('errToast'); el.textContent='⚠ '+msg; el.style.display='block';
+  clearTimeout(el._h); el._h=setTimeout(()=>el.style.display='none',6000); }
+addEventListener('error',e=>showError(e.message||'Erreur script'));
+
+/* ================= BASE 3D ================= */
+const TAU=Math.PI*2, RAD=Math.PI/180, rnd=Math.random;
+let simSpeed=1.2, sunFactor=1, moonSpeedMult=30;
+const renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance',preserveDrawingBuffer:true});
+renderer.setSize(innerWidth,innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.shadowMap.enabled=true; renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+renderer.toneMapping=THREE.ACESFilmicToneMapping; renderer.toneMappingExposure=0.85;
+document.body.appendChild(renderer.domElement);
+const maxAniso=renderer.capabilities.getMaxAnisotropy();
+const scene=new THREE.Scene();
+scene.fog=new THREE.FogExp2(0x070b14,0.00022);
+const camera=new THREE.PerspectiveCamera(55,innerWidth/innerHeight,0.5,160000);
+const GAL_VIEW_POS=new THREE.Vector3(0,3400,5400);
+camera.position.copy(GAL_VIEW_POS);
+
+const LensShader={
+  uniforms:{ tDiffuse:{value:null}, uLensA:{value:new THREE.Vector3(0,0,0)}, uLensB:{value:new THREE.Vector3(0,0,0)},
+    uRA:{value:0}, uRB:{value:0}, uAspect:{value:innerWidth/innerHeight}, uTime:{value:0} },
+  vertexShader:`varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }`,
+  fragmentShader:`
+    uniform sampler2D tDiffuse; uniform vec3 uLensA; uniform vec3 uLensB;
+    uniform float uRA; uniform float uRB; uniform float uAspect; uniform float uTime; varying vec2 vUv;
+
+    /* Schwarzschild-style deflection */
+    vec2 lensUV(vec2 p, vec2 c, float rE){
+      if(rE<=0.0) return p;
+      vec2 v=(p-c)*vec2(uAspect,1.0); float d=length(v);
+      if(d<0.0001) return p;
+      float rs=rE*1.8; /* photon sphere radius */
+      float defl=rs*rs/d;
+      float dn=d-defl;
+      if(dn<rs*0.08) dn=rs*0.08;
+      return c+(v/d)*dn*vec2(1.0/uAspect,1.0);
+    }
+
+    /* Bright asymmetric photon ring + chromatic aberration */
+    vec3 chromaticRing(vec2 uv, vec2 c, float rE){
+      vec2 v=(uv-c)*vec2(uAspect,1.0); float d=length(v);
+      if(d<0.001) return vec3(0.0);
+      float rs=rE*1.8;
+      /* Main ring */
+      float ring=exp(-pow((d-rs)/(rs*0.09),2.0));
+      /* R/G/B offset for chromatic aberration */
+      float rCol=exp(-pow((d-rs*0.94)/(rs*0.06),2.0));
+      float gCol=exp(-pow((d-rs*1.00)/(rs*0.06),2.0));
+      float bCol=exp(-pow((d-rs*1.06)/(rs*0.06),2.0));
+      return vec3(rCol, gCol, bCol)*0.8;
+    }
+
+    /* Apply both black hole lens distortions with chromatic scale */
+    vec2 applyAll(vec2 uv, float chromaScale){
+      vec2 r=uv;
+      if(uLensA.z>0.5) r=lensUV(r,uLensA.xy,uRA*chromaScale);
+      if(uLensB.z>0.5) r=lensUV(r,uLensB.xy,uRB*chromaScale);
+      return r;
+    }
+
+    void main(){
+      float shade=1.0;
+      vec3 chroma=vec3(0.0);
+
+      if(uLensA.z>0.5){
+        float dA=length((vUv-uLensA.xy)*vec2(uAspect,1.0));
+        /* Deep black shadow core */
+        float innerDark=smoothstep(uRA*0.0,uRA*0.5,dA);
+        shade*=innerDark;
+        /* Bright photon ring at Einstein radius */
+        float ringA=smoothstep(uRA*0.7,uRA*1.1,dA)*(1.0-smoothstep(uRA*1.1,uRA*1.7,dA));
+        shade+=ringA*0.25;
+        /* Warped light arc above/below (hat effect) */
+        vec2 off=(vUv-uLensA.xy)*vec2(uAspect,1.0);
+        float vertArc=abs(off.y)/(abs(off.x)+0.001);
+        float hatGlow=smoothstep(0.6,1.2,vertArc)*smoothstep(uRA*0.5,uRA*1.2,dA)*(1.0-smoothstep(uRA*1.2,uRA*2.0,dA));
+        shade+=hatGlow*0.1;
+        chroma+=chromaticRing(vUv,uLensA.xy,uRA);
+      }
+      if(uLensB.z>0.5){
+        float dB=length((vUv-uLensB.xy)*vec2(uAspect,1.0));
+        float innerDark=smoothstep(uRB*0.0,uRB*0.5,dB);
+        shade*=innerDark;
+        float ringB=smoothstep(uRB*0.7,uRB*1.1,dB)*(1.0-smoothstep(uRB*1.1,uRB*1.7,dB));
+        shade+=ringB*0.25;
+        vec2 off=(vUv-uLensB.xy)*vec2(uAspect,1.0);
+        float vertArc=abs(off.y)/(abs(off.x)+0.001);
+        float hatGlow=smoothstep(0.6,1.2,vertArc)*smoothstep(uRB*0.5,uRB*1.2,dB)*(1.0-smoothstep(uRB*1.2,uRB*2.0,dB));
+        shade+=hatGlow*0.1;
+        chroma+=chromaticRing(vUv,uLensB.xy,uRB);
+      }
+
+      /* Chromatic aberration: sample R/G/B at different deflection amounts */
+      vec2 uvR=applyAll(vUv,1.08);
+      vec2 uvG=applyAll(vUv,1.0);
+      vec2 uvB=applyAll(vUv,0.92);
+      float colR=texture2D(tDiffuse,uvR).r;
+      float colG=texture2D(tDiffuse,uvG).g;
+      float colB=texture2D(tDiffuse,uvB).b;
+      vec3 col=vec3(colR,colG,colB);
+
+      /* Add photon ring glow + chromatic aberration */
+      col+=chroma*vec3(0.9,0.6,0.45);
+
+      /* Subtle time-varying wobble */
+      float wobble=sin(uTime*0.6)*0.002;
+      vec2 wuv=applyAll(vUv+vec2(wobble,-wobble*0.7),1.0);
+      col=mix(col,vec3(texture2D(tDiffuse,wuv).rgb),0.12);
+
+      gl_FragColor=vec4(col*max(shade,0.0),1.0);
+    }`
+};
+const composer=new EffectComposer(renderer);
+const renderPass=new RenderPass(scene,camera);
+composer.addPass(renderPass);
+composer.addPass(new UnrealBloomPass(new THREE.Vector2(innerWidth,innerHeight),0.7,0.4,0.25));
+const lensPass=new ShaderPass(LensShader);
+composer.addPass(lensPass);
+composer.addPass(new OutputPass());
+const controls=new OrbitControls(camera,renderer.domElement);
+controls.enableDamping=true; controls.dampingFactor=0.06;
+controls.minDistance=8; controls.maxDistance=70000;
+const ambient=new THREE.AmbientLight(0x2a3550,0.45);
+scene.add(ambient);
+
+/* ================= HELPERS TEXTURES ================= */
+function canvasTex(w,h,draw){ const c=document.createElement('canvas'); c.width=w; c.height=h; draw(c.getContext('2d'),w,h);
+  const t=new THREE.CanvasTexture(c); t.colorSpace=THREE.SRGBColorSpace; t.anisotropy=maxAniso; return t; }
+function rgba(hex,a){ const n=parseInt(hex.slice(1),16); return `rgba(${(n>>16)&255},${(n>>8)&255},${n&255},${a})`; }
+function blob(g,x,y,r,hex,a){ if(r<=0)return; const gr=g.createRadialGradient(x,y,r*0.05,x,y,r); gr.addColorStop(0,rgba(hex,a)); gr.addColorStop(1,rgba(hex,0)); g.fillStyle=gr; g.beginPath(); g.arc(x,y,r,0,TAU); g.fill(); }
+function wblob(g,w,h,x,y,r,hex,a){ blob(g,x,y,r,hex,a); if(x<r*1.5) blob(g,x+w,y,r,hex,a); if(x>w-r*1.5) blob(g,x-w,y,r,hex,a); }
+function streak(g,x,y,rx,ry,hex,a){ g.save(); g.translate(x,y); g.scale(Math.max(rx,0.01)/Math.max(ry,0.01),1); blob(g,0,0,ry,hex,a); g.restore(); }
+function wstreak(g,w,h,x,y,rx,ry,hex,a){ streak(g,x,y,rx,ry,hex,a); if(x<rx) streak(g,x+w,y,rx,ry,hex,a); if(x>w-rx) streak(g,x-w,y,rx,ry,hex,a); }
+const softTex=canvasTex(64,64,(g)=>{ const gr=g.createRadialGradient(32,32,0,32,32,32); gr.addColorStop(0,'rgba(255,255,255,1)'); gr.addColorStop(0.35,'rgba(255,255,255,0.7)'); gr.addColorStop(1,'rgba(255,255,255,0)'); g.fillStyle=gr; g.fillRect(0,0,64,64); });
+function radialSprite(stops,opacity=1){ const t=canvasTex(256,256,(g)=>{ const gr=g.createRadialGradient(128,128,0,128,128,128); stops.forEach(s=>gr.addColorStop(s[0],s[1])); g.fillStyle=gr; g.fillRect(0,0,256,256); });
+  return new THREE.Sprite(new THREE.SpriteMaterial({map:t,transparent:true,opacity,blending:THREE.AdditiveBlending,depthWrite:false,fog:false})); }
+const LABEL_BOOST=1.85; /* global multiplier applied to every solar-system label */
+function makeLabel(text){ const c=document.createElement('canvas'); c.width=1024; c.height=128; const g=c.getContext('2d');
+  g.font='700 62px "Segoe UI", Arial, sans-serif'; g.textAlign='center'; g.textBaseline='middle';
+  /* dark halo so names stay readable over bright dust belts */
+  g.shadowColor='rgba(0,0,0,0.95)'; g.shadowBlur=18;
+  g.lineJoin='round'; g.lineWidth=10; g.strokeStyle='rgba(0,0,0,0.85)'; g.strokeText(text,512,64);
+  g.strokeText(text,512,64);
+  g.shadowBlur=26; g.shadowColor='rgba(120,170,255,0.75)';
+  g.fillStyle='rgba(240,247,255,1)'; g.fillText(text,512,64);
+  g.shadowBlur=0; g.fillText(text,512,64);
+  const t=new THREE.CanvasTexture(c); t.colorSpace=THREE.SRGBColorSpace; t.anisotropy=8;
+  const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:t,transparent:true,depthWrite:false,fog:false,opacity:0.98}));
+  sp.userData.isLabel=true; sp.renderOrder=20; return sp; }
+function makeAtmo(radius,hex,boost){
+  const mat=new THREE.ShaderMaterial({
+    uniforms:{uColor:{value:new THREE.Color(hex)},uC:{value:0.55},uP:{value:3.2},uBoost:{value:boost}},
+    vertexShader:`uniform float uC; uniform float uP; varying float vI;
+      void main(){ vec3 n=normalize(normalMatrix*normal); vec4 mv=modelViewMatrix*vec4(position,1.0);
+      vec3 vdir=normalize(-mv.xyz); vI=pow(max(uC-dot(n,vdir),0.0),uP); gl_Position=projectionMatrix*mv; }`,
+    fragmentShader:`uniform vec3 uColor; uniform float uBoost; varying float vI;
+      void main(){ float a=clamp(vI*uBoost,0.0,1.4); gl_FragColor=vec4(uColor*a,a); }`,
+    side:THREE.BackSide,blending:THREE.AdditiveBlending,transparent:true,depthWrite:false});
+  const m=new THREE.Mesh(new THREE.SphereGeometry(radius,48,32),mat); m.renderOrder=4; return m;
+}
+
+/* ============ BRUIT FRACTAL ============ */
+function mulberry32(a){ return function(){ a|=0; a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15,1|a); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
+function makeNoise2D(seed){
+  const rand=mulberry32(seed);
+  const p=new Uint8Array(512); const v=new Float32Array(256);
+  for(let i=0;i<256;i++){ v[i]=rand(); p[i]=i; }
+  for(let i=255;i>0;i--){ const j=Math.floor(rand()*(i+1)); const t=p[i]; p[i]=p[j]; p[j]=t; }
+  for(let i=0;i<256;i++) p[256+i]=p[i];
+  return function(x,y,px){
+    const xi=Math.floor(x), yi=Math.floor(y);
+    const fx=x-xi, fy=y-yi;
+    const sx=fx*fx*(3-2*fx), sy=fy*fy*(3-2*fy);
+    const X0=px?((xi%px)+px)%px:(xi&255), X1=px?(((xi+1)%px)+px)%px:((xi+1)&255);
+    const Y0=yi&255, Y1=(yi+1)&255;
+    const a=v[p[p[X0]+Y0]], b=v[p[p[X1]+Y0]], c=v[p[p[X0]+Y1]], d=v[p[p[X1]+Y1]];
+    return a+(b-a)*sx+(c-a)*sy+(a-b-c+d)*sx*sy;
+  };
+}
+function fbm(nf,x,y,oct,px){
+  let amp=1,f=1,sum=0,norm=0;
+  for(let i=0;i<oct;i++){ sum+=amp*nf(x*f,y*f,px?Math.round(px*f):0); norm+=amp; amp*=0.5; f*=2; }
+  return sum/norm;
+}
+
+/* ================= TEXTURES PROCÉDURALES ================= */
+function paintRocky(g,w,h,base,dark,light,caps,craters){
+  g.fillStyle=base; g.fillRect(0,0,w,h);
+  for(let i=0;i<340;i++) wblob(g,w,h,rnd()*w,rnd()*h,6+rnd()*40,rnd()<0.5?dark:light,0.04+rnd()*0.1);
+  if(caps){ for(let i=0;i<46;i++){ wblob(g,w,h,rnd()*w,rnd()*16,7+rnd()*20,'#f2f6f9',0.5+rnd()*0.4); wblob(g,w,h,rnd()*w,h-rnd()*16,7+rnd()*20,'#f2f6f9',0.5+rnd()*0.4); } }
+  if(craters){ for(let i=0;i<110;i++){ const x=rnd()*w,y=rnd()*h,r=1.5+rnd()*6.5;
+    g.fillStyle=rgba(dark,0.3); g.beginPath(); g.arc(x,y,r,0,TAU); g.fill();
+    g.strokeStyle=rgba(light,0.22); g.lineWidth=1; g.beginPath(); g.arc(x,y,r+0.8,0,TAU); g.stroke(); } }
+}
+function texBanded(colors,streakA,spot){
+  return canvasTex(1024,512,(g,w,h)=>{
+    const n=colors.length,bh=h/n;
+    for(let i=0;i<n;i++){ g.fillStyle=colors[i]; g.fillRect(0,Math.floor(i*bh)-1,w,Math.ceil(bh)+2); }
+    for(let i=0;i<430;i++){ const bi=Math.floor(rnd()*n); const y0=bi*bh+(rnd()-0.5)*bh*1.7;
+      const col=colors[(bi+(rnd()<0.5?0:1))%n];
+      wstreak(g,w,h,rnd()*w,y0,40+rnd()*150,2.5+rnd()*8,col,streakA*(0.4+rnd())); }
+    for(let i=0;i<90;i++) wstreak(g,w,h,rnd()*w,rnd()*h,60+rnd()*180,1.5+rnd()*3,'#ffffff',streakA*0.35);
+    if(spot){ g.save(); g.translate(spot[0]*w,spot[1]*h); g.scale(2.2,1);
+      blob(g,0,0,30,'#a8442a',0.9); blob(g,0,0,22,'#c4552e',0.9); blob(g,0,0,12,'#dd7a48',0.85); g.restore(); }
+  });
+}
+/* ---- ENHANCED PLANET TEXTURES ---- */
+const texMercure=()=>canvasTex(512,256,(g,w,h)=>{
+  const n1=makeNoise2D(11),n2=makeNoise2D(29),n3=makeNoise2D(53);
+  const img=g.createImageData(w,h);
+  for(let y=0;y<h;y++){ const v=y/h;
+    for(let x=0;x<w;x++){ const u=x/w,i=(y*w+x)*4;
+      const e=fbm(n1,u*14,v*10,6,12)*0.6+fbm(n2,u*7,v*5,4,8)*0.3+fbm(n3,u*28,v*20,3,32)*0.1;
+      /* Grey highlands with subtle warm/cool variation */
+      const base=110+e*80;
+      const warm=fbm(n2,u*5,v*3,3,6);
+      const r=base+8+warm*15;
+      const g2=base+3+warm*8;
+      const b=base-warm*5;
+      img.data[i]=Math.min(255,r); img.data[i+1]=Math.min(255,g2); img.data[i+2]=Math.min(255,b); img.data[i+3]=255;
+    } }
+  g.putImageData(img,0,0);
+  /* Craters with rim shadows + ejecta blankets */
+  for(let i=0;i<250;i++){ const x=rnd()*w,y=rnd()*h,r=0.8+rnd()*10;
+    const gr=g.createRadialGradient(x-r*0.15,y-r*0.15,r*0.1,x,y,r);
+    gr.addColorStop(0,'rgba(50,46,42,0.75)'); gr.addColorStop(0.35,'rgba(75,70,64,0.45)');
+    gr.addColorStop(0.7,'rgba(140,132,120,0.2)'); gr.addColorStop(0.9,'rgba(165,155,140,0.12)');
+    gr.addColorStop(1,'rgba(130,122,110,0)');
+    g.fillStyle=gr; g.beginPath(); g.arc(x,y,r,0,TAU); g.fill();
+    /* Ejecta ray */
+    if(r>4&&rnd()>0.6){ g.strokeStyle='rgba(170,162,150,0.08)'; g.lineWidth=0.8;
+      for(let j=0;j<3+Math.floor(rnd()*4);j++){ const a=rnd()*TAU;
+        g.beginPath(); g.moveTo(x+Math.cos(a)*r,y+Math.sin(a)*r);
+        g.lineTo(x+Math.cos(a)*(r+rnd()*18),y+Math.sin(a)*(r+rnd()*18)); g.stroke(); } }
+  }
+  /* Large basins (Caloris, etc) */
+  for(let i=0;i<5;i++){ const x=rnd()*w,y=rnd()*h,r=25+rnd()*40;
+    g.fillStyle=`rgba(55,50,45,${0.12+rnd()*0.12})`; g.beginPath(); g.arc(x,y,r,0,TAU); g.fill();
+    g.strokeStyle='rgba(175,165,148,0.18)'; g.lineWidth=1.8; g.beginPath(); g.arc(x,y,r,0,TAU); g.stroke();
+    /* Peak ring */
+    g.strokeStyle='rgba(150,142,130,0.1)'; g.lineWidth=1; g.beginPath(); g.arc(x,y,r*0.5,0,TAU); g.stroke(); }
+});
+
+const texVenus=()=>canvasTex(512,256,(g,w,h)=>{
+  /* Dense sulfuric acid cloud layers with UV absorption patterns */
+  g.fillStyle='#d4a85c'; g.fillRect(0,0,w,h);
+  const n1=makeNoise2D(41),n2=makeNoise2D(53);
+  /* Cloud bands with noise */
+  for(let i=0;i<500;i++){ const x=rnd()*w,y=rnd()*h;
+    const rx=30+rnd()*100, ry=6+rnd()*18;
+    const cols=['#ecd7a0','#c99a4e','#f2deb0','#b88540','#e0c478','#d4b068'];
+    wstreak(g,w,h,x,y,rx,ry,cols[Math.floor(rnd()*cols.length)],0.06+rnd()*0.08); }
+  /* Swirling vortices */
+  for(let i=0;i<15;i++){ const cx=rnd()*w,cy=rnd()*h;
+    for(let a=0;a<20;a++){ const r=5+a*3,ang=a*0.5;
+      g.strokeStyle=`rgba(210,180,120,${0.08-a*0.003})`; g.lineWidth=1;
+      g.beginPath(); g.arc(cx,cy,r,ang,ang+0.6); g.stroke(); } }
+  /* UV absorption dark patches */
+  for(let i=0;i<20;i++) wblob(g,w,h,rnd()*w,rnd()*h,20+rnd()*50,'#8a6020',0.08+rnd()*0.06);
+  /* Subtle cloud band streaks */
+  for(let i=0;i<200;i++) wstreak(g,w,h,rnd()*w,rnd()*h,30+rnd()*90,4+rnd()*12,'#ecd7a0',0.04);
+});
+
+const texMars=()=>canvasTex(512,256,(g,w,h)=>{
+  /* Mars: rich red desert with dark volcanic regions, polar caps, canyons */
+  const n1=makeNoise2D(17),n2=makeNoise2D(31),n3=makeNoise2D(47),n4=makeNoise2D(59);
+  const img=g.createImageData(w,h);
+  for(let y=0;y<h;y++){ const v=y/h;
+    for(let x=0;x<w;x++){ const u=x/w,i=(y*w+x)*4;
+      const e=fbm(n1,u*12,v*7,6,12);
+      const darkPatch=fbm(n2,u*6,v*4,4,8);
+      const dust=fbm(n3,u*20,v*12,3,24);
+      const rough=fbm(n4,u*30,v*18,2,36);
+      let r,g2,b;
+      if(e>0.68){ /* Southern highlands — lighter ochre */
+        r=195+e*22+dust*10; g2=115+e*18+dust*6; b=68+e*12+dust*4;
+      } else if(darkPatch>0.62){ /* Dark volcanic regions (Syrtis Major, Acidalia) */
+        r=95+darkPatch*25-rough*8; g2=55+darkPatch*15-rough*5; b=32+darkPatch*10-rough*3;
+      } else { /* Mid-tone ochre desert */
+        r=175+e*35+dust*12; g2=100+e*22+dust*8; b=52+e*15+dust*5; }
+      /* Dust devil streaks */
+      if(rnd()>0.998){ r+=30; g2+=20; b+=10; }
+      /* Tharsis bulge — slightly brighter plateau */
+      const tharsis=Math.exp(-Math.pow((u-0.3)/0.12,2)-Math.pow((v-0.5)/0.2,2));
+      r+=tharsis*18; g2+=tharsis*12; b+=tharsis*8;
+      /* North polar cap — large */
+      const latN=Math.abs(v-0.5)*2;
+      if(latN>0.80){ const ice=(latN-0.80)/0.20;
+        r=r+(235-r)*ice; g2=g2+(238-g2)*ice; b=b+(242-b)*ice; }
+      /* South polar cap — smaller */
+      if(latN>0.88){ const ice=(latN-0.88)/0.12;
+        r=r+(225-r)*ice*0.7; g2=g2+(228-g2)*ice*0.7; b=b+(232-b)*ice*0.7; }
+      img.data[i]=Math.min(255,r); img.data[i+1]=Math.min(255,g2); img.data[i+2]=Math.min(255,b); img.data[i+3]=255;
+    } }
+  g.putImageData(img,0,0);
+  /* Olympus Mons — large shield volcano */
+  const omX=w*0.28, omY=h*0.38;
+  const omGr=g.createRadialGradient(omX,omY,2,omX,omY,18);
+  omGr.addColorStop(0,'rgba(160,95,55,0.6)'); omGr.addColorStop(0.5,'rgba(140,80,45,0.3)');
+  omGr.addColorStop(0.8,'rgba(170,105,60,0.15)'); omGr.addColorStop(1,'rgba(0,0,0,0)');
+  g.fillStyle=omGr; g.beginPath(); g.arc(omX,omY,18,0,TAU); g.fill();
+  /* Caloris basin on opposite hemisphere */
+  const calX=w*0.78, calY=h*0.35;
+  g.fillStyle='rgba(130,75,40,0.3)'; g.beginPath(); g.arc(calX,calY,12,0,TAU); g.fill();
+  g.strokeStyle='rgba(195,125,75,0.2)'; g.lineWidth=1.2; g.beginPath(); g.arc(calX,calY,12,0,TAU); g.stroke();
+  /* Valles Marineris — grand canyon system */
+  g.strokeStyle='rgba(85,45,22,0.4)'; g.lineWidth=3; g.beginPath();
+  g.moveTo(w*0.18,h*0.44); g.bezierCurveTo(w*0.30,h*0.42,w*0.48,h*0.46,w*0.65,h*0.43); g.stroke();
+  /* Canyon branches */
+  g.strokeStyle='rgba(85,45,22,0.2)'; g.lineWidth=1.5; g.beginPath();
+  g.moveTo(w*0.35,h*0.43); g.lineTo(w*0.38,h*0.48); g.stroke();
+  g.beginPath(); g.moveTo(w*0.48,h*0.45); g.lineTo(w*0.52,h*0.50); g.stroke();
+  /* Craters with rays */
+  for(let i=0;i<12;i++){ const x=rnd()*w,y=25+rnd()*(h-50),r=4+rnd()*16;
+    g.fillStyle=`rgba(130,72,38,0.45)`; g.beginPath(); g.arc(x,y,r,0,TAU); g.fill();
+    g.strokeStyle='rgba(200,135,85,0.25)'; g.lineWidth=1.2; g.beginPath(); g.arc(x,y,r+1.2,0,TAU); g.stroke(); }
+  /* Dust storm streaks */
+  for(let i=0;i<8;i++){ const x0=rnd()*w,y0=rnd()*h;
+    g.strokeStyle=`rgba(195,130,80,${0.06+rnd()*0.06})`; g.lineWidth=1.5;
+    g.beginPath(); g.moveTo(x0,y0); g.lineTo(x0+rnd()*80-40,y0+rnd()*20-10); g.stroke(); }
+});
+
+const texJupiter=()=>canvasTex(512,256,(g,w,h)=>{
+  /* Jupiter: turbulent banded atmosphere with deep color variation */
+  const n1=makeNoise2D(11),n2=makeNoise2D(23),n3=makeNoise2D(37);
+  const img=g.createImageData(w,h);
+  /* Band structure: alternating warm/cool zones and belts */
+  const bands=[
+    {y:0.00,c:[195,175,150]},{y:0.08,c:[215,195,165]},{y:0.14,c:[160,130,100]},
+    {y:0.20,c:[220,200,170]},{y:0.28,c:[175,145,110]},{y:0.34,c:[200,180,155]},
+    {y:0.42,c:[155,125,95]},{y:0.50,c:[210,190,160]},{y:0.56,c:[180,150,115]},
+    {y:0.62,c:[200,180,150]},{y:0.68,c:[165,135,105]},{y:0.74,c:[225,205,175]},
+    {y:0.82,c:[170,140,108]},{y:0.88,c:[205,185,158]},{y:0.94,c:[190,170,145]},{y:1.00,c:[210,190,165]}
+  ];
+  for(let y=0;y<h;y++){ const v=y/h;
+    for(let x=0;x<w;x++){ const u=x/w,i=(y*w+x)*4;
+      /* Interpolate band colors */
+      let ci=0; for(let k=0;k<bands.length-1;k++){ if(v>=bands[k].y&&v<bands[k+1].y){ ci=k; break; } }
+      const t=(v-bands[ci].y)/(bands[ci+1].y-bands[ci].y);
+      const c0=bands[ci].c, c1=bands[ci+1].c;
+      let r=c0[0]+(c1[0]-c0[0])*t, g2=c0[1]+(c1[1]-c0[1])*t, b=c0[2]+(c1[2]-c0[2])*t;
+      /* Turbulent noise overlay */
+      const turb=fbm(n1,u*16,v*8,5,20);
+      const swirl=fbm(n2,u*8+Math.sin(v*6)*0.3,v*4,4,12);
+      const detail=fbm(n3,u*30,v*15,3,40);
+      r+=turb*25-12+swirl*15-7+detail*8-4;
+      g2+=turb*20-10+swirl*12-6+detail*6-3;
+      b+=turb*15-7+swirl*10-5+detail*5-2;
+      /* White zone brightening at band edges */
+      const edge=Math.abs(Math.sin(v*Math.PI*7+turb*2));
+      if(edge>0.85){ const wb=(edge-0.85)*6.6; r+=wb*30; g2+=wb*28; b+=wb*25; }
+      img.data[i]=Math.max(0,Math.min(255,r)); img.data[i+1]=Math.max(0,Math.min(255,g2));
+      img.data[i+2]=Math.max(0,Math.min(255,b)); img.data[i+3]=255;
+    } }
+  g.putImageData(img,0,0);
+  /* Great Red Spot */
+  g.save(); g.translate(w*0.70,h*0.63); g.scale(2.2,1);
+  const grsGr=g.createRadialGradient(0,0,2,0,0,30);
+  grsGr.addColorStop(0,'#c85a28'); grsGr.addColorStop(0.3,'#b54820');
+  grsGr.addColorStop(0.65,'#9a3818'); grsGr.addColorStop(0.85,'#c08050');
+  grsGr.addColorStop(1,'#d4b090');
+  g.fillStyle=grsGr; g.beginPath(); g.arc(0,0,30,0,TAU); g.fill();
+  /* GRS internal swirl — multiple arms */
+  for(let a=0;a<16;a++){ const ang=a*0.45,rr=6+a*1.4;
+    g.strokeStyle=`rgba(210,105,55,${0.28-a*0.015})`; g.lineWidth=1.2;
+    g.beginPath(); g.arc(0,0,rr,ang,ang+0.9); g.stroke(); }
+  g.restore();
+  /* White ovals and vortices (SC oval, etc) */
+  for(let i=0;i<25;i++){ const x=rnd()*w,y=rnd()*h,r=2+rnd()*7;
+    g.fillStyle=`rgba(245,238,225,${0.2+rnd()*0.25})`;
+    g.beginPath(); g.ellipse(x,y,r*1.5,r,0,0,TAU); g.fill(); }
+  /* Turbulent eddies at band boundaries */
+  for(let i=0;i<30;i++){ const x=rnd()*w,y=rnd()*h,r=4+rnd()*12;
+    g.strokeStyle=`rgba(${160+rnd()*40},${130+rnd()*30},${100+rnd()*20},${0.08+rnd()*0.06})`;
+    g.lineWidth=0.8; g.beginPath(); g.arc(x,y,r,rnd()*TAU,rnd()*TAU+rnd()*2); g.stroke(); }
+});
+
+const texSaturn=()=>canvasTex(512,256,(g,w,h)=>{
+  /* Saturn: subtle golden bands with subtle color variation and north pole hexagon */
+  const n1=makeNoise2D(21),n2=makeNoise2D(33);
+  const img=g.createImageData(w,h);
+  for(let y=0;y<h;y++){ const v=y/h;
+    for(let x=0;x<w;x++){ const u=x/w,i=(y*w+x)*4;
+      const latBand=Math.sin(v*Math.PI*6+fbm(n1,u*6,v*3,4,10)*1.2)*0.5+0.5;
+      const turb=fbm(n2,u*12,v*6,4,16);
+      /* Saturn palette: muted golds, yellows, ambers */
+      const base=latBand*0.55+turb*0.45;
+      const r=215+base*30+turb*12;
+      const g2=195+base*25+turb*10;
+      const b=155+base*20+turb*8;
+      /* Slightly bluer at equator (belts) */
+      const eqProx=1-Math.abs(v-0.5)*2;
+      const eqBlue=eqProx*eqProx*12;
+      img.data[i]=Math.min(255,r); img.data[i+1]=Math.min(255,g2);
+      img.data[i+2]=Math.min(255,b-eqBlue*0.3); img.data[i+3]=255;
+    } }
+  g.putImageData(img,0,0);
+  /* Subtle band streaks */
+  for(let i=0;i<350;i++){ const y0=rnd()*h;
+    wstreak(g,w,h,rnd()*w,y0,40+rnd()*120,2+rnd()*5,'#c8b491',0.05+rnd()*0.04); }
+  /* Thin white ammonia cirrus */
+  for(let i=0;i<50;i++) wstreak(g,w,h,rnd()*w,rnd()*h,50+rnd()*140,1+rnd()*1.8,'#ffffff',0.04);
+  /* North pole hexagon */
+  g.save(); g.globalAlpha=0.18; g.strokeStyle='#b8a068'; g.lineWidth=2.5;
+  g.beginPath();
+  for(let i=0;i<6;i++){ const a=i*TAU/6-Math.PI/2; const px=w/2+Math.cos(a)*14, py=10+Math.sin(a)*10;
+    i===0?g.moveTo(px,py):g.lineTo(px,py); }
+  g.closePath(); g.stroke();
+  /* Hexagon interior — slightly darker */
+  g.fillStyle='rgba(180,158,110,0.08)'; g.fill();
+  g.restore();
+  /* Polar darkening */
+  for(const py of [h*0.02, h*0.98]){ const gr=g.createRadialGradient(w/2,py,0,w/2,py,h*0.08);
+    gr.addColorStop(0,'rgba(120,100,70,0.12)'); gr.addColorStop(1,'rgba(0,0,0,0)');
+    g.fillStyle=gr; g.fillRect(0,0,w,h); }
+});
+
+const texMoon=()=>canvasTex(256,128,(g,w,h)=>paintRocky(g,w,h,'#9a978f','#6c6a62','#c4c2ba',false,true));
+
+function buildEarthTextures(){
+  const W=1024,H=512,SEA=0.5;
+  const n1=makeNoise2D(11),n2=makeNoise2D(23),n3=makeNoise2D(37),n4=makeNoise2D(53);
+  const dayC=document.createElement('canvas'); dayC.width=W; dayC.height=H;
+  const roughC=document.createElement('canvas'); roughC.width=W; roughC.height=H;
+  const nightC=document.createElement('canvas'); nightC.width=W; nightC.height=H;
+  const dImg=dayC.getContext('2d').createImageData(W,H);
+  const rImg=roughC.getContext('2d').createImageData(W,H);
+  const nImg=nightC.getContext('2d').createImageData(W,H);
+  for(let y=0;y<H;y++){
+    const v=y/H, latN=Math.abs(v-0.5)*2;
+    for(let x=0;x<W;x++){
+      const u=x/W, i=(y*W+x)*4;
+      const e=fbm(n1,u*8,v*4,7,8)*0.8+fbm(n2,u*3,v*1.5,4,3)*0.2;
+      const iceLine=0.86-e*0.06;
+      let r,g,b,rough;
+      if(latN>iceLine){
+        const s=222+Math.floor(fbm(n3,u*12,v*6,3,12)*26);
+        r=s; g=s+3; b=s+8; rough=140;
+      } else if(e<SEA){
+        const depth=SEA-e;
+        if(depth<0.018){ r=42; g=120; b=178; }
+        else if(depth<0.06){ r=18; g=80; b=150; }
+        else { r=6; g=42; b=88; }
+        rough=38;
+      } else {
+        const elev=e-SEA, moist=fbm(n3,u*10,v*5,4,10);
+        const desertBand=Math.exp(-Math.pow((latN-0.28)/0.16,2));
+        if(elev<0.012){ r=178; g=160; b=120; }
+        else if(desertBand>0.45&&moist<0.55){ r=190; g=165; b=110; }
+        else if(elev>0.16){ r=120; g=112; b=100; }
+        else if(elev>0.10){ r=110; g=95; b=70; }
+        else if(moist>0.55){ r=38; g=88; b=40; }
+        else { r=86; g=120; b=60; }
+        if(latN>0.62){ const t=(latN-0.62)/0.24*0.7; r+=(200-r)*t; g+=(205-g)*t; b+=(210-b)*t; }
+        const shade=0.82+fbm(n2,u*20,v*10,3,20)*0.36;
+        r*=shade; g*=shade; b*=shade; rough=225;
+      }
+      dImg.data[i]=Math.min(255,r); dImg.data[i+1]=Math.min(255,g); dImg.data[i+2]=Math.min(255,b); dImg.data[i+3]=255;
+      rImg.data[i]=rough; rImg.data[i+1]=rough; rImg.data[i+2]=rough; rImg.data[i+3]=255;
+      let na=0;
+      if(e>=SEA&&latN<iceLine&&latN<0.72){
+        const pop=fbm(n4,u*14,v*7,4,14), coast=1-Math.min(1,(e-SEA)/0.05);
+        const p=pop*0.75+coast*0.35;
+        if(p>0.62){
+          const a=Math.min(1,(p-0.62)*4);
+          nImg.data[i]=255; nImg.data[i+1]=180; nImg.data[i+2]=80; na=Math.floor(a*230);
+        }
+      }
+      nImg.data[i+3]=na;
+    }
+  }
+  dayC.getContext('2d').putImageData(dImg,0,0);
+  roughC.getContext('2d').putImageData(rImg,0,0);
+  nightC.getContext('2d').putImageData(nImg,0,0);
+  const mkS=c=>{ const t=new THREE.CanvasTexture(c); t.colorSpace=THREE.SRGBColorSpace; t.anisotropy=maxAniso; return t; };
+  const roughT=new THREE.CanvasTexture(roughC); roughT.anisotropy=maxAniso;
+  return {day:mkS(dayC), night:mkS(nightC), rough:roughT};
+}
+const earthMaps=buildEarthTextures();
+
+function texClouds(){
+  const W=1024,H=512, nf=makeNoise2D(97);
+  const c=document.createElement('canvas'); c.width=W; c.height=H;
+  const img=c.getContext('2d').createImageData(W,H);
+  for(let y=0;y<H;y++){ const v=y/H;
+    for(let x=0;x<W;x++){ const u=x/W, i=(y*W+x)*4;
+      let cl=fbm(nf,u*10,v*5,6,10); cl+=0.06*Math.sin(v*Math.PI*7+cl*5);
+      const a=Math.max(0,Math.min(1,(cl-0.52)/0.2));
+      img.data[i]=255; img.data[i+1]=255; img.data[i+2]=255; img.data[i+3]=Math.floor(a*235);
+    } }
+  c.getContext('2d').putImageData(img,0,0);
+  const t=new THREE.CanvasTexture(c); t.colorSpace=THREE.SRGBColorSpace; t.anisotropy=maxAniso; return t;
+}
+function texMoonDetailed(){
+  const W=512,H=256, n1=makeNoise2D(7), n2=makeNoise2D(19);
+  const c=document.createElement('canvas'); c.width=W; c.height=H;
+  const g=c.getContext('2d'); const img=g.createImageData(W,H);
+  for(let y=0;y<H;y++){ const v=y/H;
+    for(let x=0;x<W;x++){ const u=x/W, i=(y*W+x)*4;
+      let lum=0.52+fbm(n1,u*6,v*3,5,6)*0.34;
+      const nearSide=Math.cos(u*TAU);
+      const mare=fbm(n2,u*4,v*2,4,4);
+      if(nearSide>0.2&&mare>0.62) lum=0.40+mare*0.15;
+      if(nearSide<-0.3) lum+=0.04;
+      const s=Math.floor(Math.min(1,lum)*240);
+      img.data[i]=s+8; img.data[i+1]=s+6; img.data[i+2]=s+2; img.data[i+3]=255;
+    } }
+  g.putImageData(img,0,0);
+  const rnd2=mulberry32(42);
+  for(let k=0;k<140;k++){
+    const x=rnd2()*W, y=rnd2()*H, r=1+rnd2()*5;
+    g.fillStyle=`rgba(60,60,56,${0.18+rnd2()*0.25})`; g.beginPath(); g.arc(x,y,r,0,TAU); g.fill();
+    g.strokeStyle=`rgba(225,223,215,${0.2+rnd2()*0.25})`; g.lineWidth=1; g.beginPath(); g.arc(x,y,r+0.7,0,TAU); g.stroke();
+  }
+  const tx=W*0.06, ty=H*0.72;
+  g.fillStyle='rgba(245,243,235,0.95)'; g.beginPath(); g.arc(tx,ty,3.2,0,TAU); g.fill();
+  for(let k=0;k<9;k++){ const a=rnd2()*TAU;
+    g.strokeStyle='rgba(235,233,225,0.26)'; g.lineWidth=1.2;
+    g.beginPath(); g.moveTo(tx,ty); g.lineTo(tx+Math.cos(a)*28,ty+Math.sin(a)*16); g.stroke(); }
+  const t=new THREE.CanvasTexture(c); t.colorSpace=THREE.SRGBColorSpace; t.anisotropy=maxAniso; return t;
+}
+/* texJupiter and texSaturn are defined in the enhanced textures section above */
+const texUranus=()=>canvasTex(512,256,(g,w,h)=>{
+  const n1=makeNoise2D(61),n2=makeNoise2D(73);
+  const img=g.createImageData(w,h);
+  for(let y=0;y<h;y++){ const v=y/h;
+    for(let x=0;x<w;x++){ const u=x/w,i=(y*w+x)*4;
+      const lat=Math.sin(v*Math.PI*2+fbm(n1,u*3,v*1.5,3,6)*0.8)*0.5+0.5;
+      const turb=fbm(n2,u*8,v*4,4,12);
+      /* Uranus palette: pale cyan-blue with subtle banding */
+      const r=155+lat*25+turb*15;
+      const g2=205+lat*20+turb*12;
+      const b=210+lat*18+turb*10;
+      /* Polar brightening (axis tilted 98°) */
+      const pole=Math.pow(Math.abs(v-0.5)*2,3);
+      img.data[i]=Math.min(255,r+pole*15);
+      img.data[i+1]=Math.min(255,g2+pole*12);
+      img.data[i+2]=Math.min(255,b+pole*10);
+      img.data[i+3]=255;
+    } }
+  g.putImageData(img,0,0);
+  /* Subtle cloud band streaks */
+  for(let i=0;i<120;i++){ const y0=rnd()*h;
+    wstreak(g,w,h,rnd()*w,y0,30+rnd()*100,4+rnd()*12,'#c8ebf0',0.04); }
+  /* Occasional bright cloud features */
+  for(let i=0;i<8;i++){ const x=rnd()*w,y=rnd()*h;
+    const gr=g.createRadialGradient(x,y,0,x,y,6+rnd()*10);
+    gr.addColorStop(0,'rgba(220,245,250,0.2)'); gr.addColorStop(1,'rgba(0,0,0,0)');
+    g.fillStyle=gr; g.beginPath(); g.arc(x,y,6+rnd()*10,0,TAU); g.fill(); }
+});
+const texNeptune=()=>canvasTex(512,256,(g,w,h)=>{
+  const n1=makeNoise2D(81),n2=makeNoise2D(93),n3=makeNoise2D(107);
+  const img=g.createImageData(w,h);
+  for(let y=0;y<h;y++){ const v=y/h;
+    for(let x=0;x<w;x++){ const u=x/w,i=(y*w+x)*4;
+      const lat=Math.sin(v*Math.PI*4+fbm(n1,u*4,v*2,4,8)*1.5)*0.5+0.5;
+      const turb=fbm(n2,u*10,v*5,5,14);
+      const deep=fbm(n3,u*6,v*3,3,10);
+      /* Neptune palette: deep azure blue with lighter bands */
+      const r=35+lat*30+turb*18+deep*8;
+      const g2=70+lat*40+turb*25+deep*12;
+      const b=160+lat*30+turb*20+deep*10;
+      /* Dark spot regions */
+      const darkSpot=Math.max(0,fbm(n1,u*7,v*4,3,10)-0.6)*2.5;
+      img.data[i]=Math.min(255,r-darkSpot*20);
+      img.data[i+1]=Math.min(255,g2-darkSpot*25);
+      img.data[i+2]=Math.min(255,b-darkSpot*15);
+      img.data[i+3]=255;
+    } }
+  g.putImageData(img,0,0);
+  /* Great Dark Spot */
+  g.save(); g.translate(w*0.42,h*0.44); g.scale(1.8,1);
+  const dg=g.createRadialGradient(0,0,1,0,0,16);
+  dg.addColorStop(0,'rgba(15,25,70,0.8)'); dg.addColorStop(0.6,'rgba(25,40,100,0.4)');
+  dg.addColorStop(1,'rgba(0,0,0,0)');
+  g.fillStyle=dg; g.beginPath(); g.arc(0,0,16,0,TAU); g.fill(); g.restore();
+  /* Bright cloud features (Scooter, etc) */
+  for(let i=0;i<12;i++){ const x=rnd()*w,y=rnd()*h;
+    const gr=g.createRadialGradient(x,y,0,x,y,4+rnd()*8);
+    gr.addColorStop(0,'rgba(180,210,255,0.3)'); gr.addColorStop(1,'rgba(0,0,0,0)');
+    g.fillStyle=gr; g.beginPath(); g.arc(x,y,4+rnd()*8,0,TAU); g.fill(); }
+  /* Wind streaks — fast jet streams */
+  for(let i=0;i<80;i++){ const y0=rnd()*h;
+    wstreak(g,w,h,rnd()*w,y0,40+rnd()*140,1.5+rnd()*4,'#78a0e6',0.08); }
+});
+const sunTex=()=>canvasTex(512,256,(g,w,h)=>{ g.fillStyle='#ffab24'; g.fillRect(0,0,w,h);
+  const cols=['#ffd95e','#ff8c1a','#ffef9e','#ff7a16','#ffc23e'];
+  for(let i=0;i<520;i++) wblob(g,w,h,rnd()*w,rnd()*h,4+rnd()*34,cols[Math.floor(rnd()*cols.length)],0.08+rnd()*0.2);
+  for(let i=0;i<26;i++) wblob(g,w,h,rnd()*w,rnd()*h,2+rnd()*7,'#c85a10',0.3); });
+const saturnRingTex=canvasTex(512,16,(g,w,h)=>{ for(let x=0;x<w;x++){ const t=x/w;
+  let a=Math.pow(Math.sin(t*Math.PI),0.4)*0.88;
+  const n=Math.sin(t*95)+Math.sin(t*37+1.7)+Math.sin(t*13+0.5);
+  a*=0.5+0.5*Math.min(1,Math.max(0,0.55+0.28*n));
+  /* Cassini Division */
+  if(t>0.60&&t<0.665)a*=0.10;
+  /* Encke Gap hint */
+  if(t>0.28&&t<0.295)a*=0.3;
+  if(t<0.07||t>0.985)a=0;
+  /* Ring color: warm tans with subtle variation */
+  const s=195+Math.floor(38*Math.sin(t*57));
+  const warmth=Math.sin(t*23)*10;
+  g.fillStyle=`rgba(${s+warmth},${s-14+warmth*0.5},${s-48},${a.toFixed(3)})`; g.fillRect(x,0,1,h); } });
+const uranusRingTex=canvasTex(512,8,(g,w,h)=>{ for(let x=0;x<w;x++){ const t=x/w; let a=0;
+  if(t>0.72&&t<0.8)a=0.55*Math.sin((t-0.72)/0.08*Math.PI);
+  if(t>0.9&&t<0.95)a=0.3;
+  g.fillStyle=`rgba(170,210,214,${a})`; g.fillRect(x,0,1,h); } });
+let nightLayerMat=null;
+function makeNightLights(radius,nightTex){
+  nightLayerMat=new THREE.ShaderMaterial({
+    uniforms:{uNight:{value:nightTex},uSunDir:{value:new THREE.Vector3(1,0,0)}},
+    vertexShader:`varying vec2 vUv; varying vec3 vWorldNormal; varying float vDist;
+      void main(){ vUv=uv; vWorldNormal=normalize(mat3(modelMatrix)*normal);
+      vDist=length((modelViewMatrix*vec4(position,1.0)).xyz);
+      gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }`,
+    fragmentShader:`uniform sampler2D uNight; uniform vec3 uSunDir; varying vec2 vUv; varying vec3 vWorldNormal; varying float vDist;
+      void main(){ float sunDot=dot(normalize(vWorldNormal),normalize(uSunDir));
+      /* Tight terminator: lights only on dark side, no bleed onto day */
+      float night=1.0-smoothstep(-0.02,0.02,sunDot);
+      vec3 lights=texture2D(uNight,vUv).rgb;
+      /* Reduce brightness when very close to avoid glow artifacts */
+      float distFade=clamp((vDist-2.0)/3.0,0.0,1.0);
+      gl_FragColor=vec4(lights*night*1.7*distFade,night*distFade); }`,
+    transparent:true,blending:THREE.AdditiveBlending,depthWrite:false});
+  const m=new THREE.Mesh(new THREE.SphereGeometry(radius,48,32),nightLayerMat); m.renderOrder=3; return m;
+}
+
+/* ================= NOTRE GALAXIE ================= */
+const galaxyGroup=new THREE.Group(); scene.add(galaxyGroup);
+const GAL_R=4200,BRANCHES=4,SPIN=5.5;
+function buildGalaxyPoints(count,size,opts={}){
+  const pos=new Float32Array(count*3),col=new Float32Array(count*3);
+  const cIn=new THREE.Color('#ffd9a3'),cOut=new THREE.Color('#5d84da'),cHII=new THREE.Color('#ff9fb8'),cHot=new THREE.Color('#9fc4ff');
+  const tmp=new THREE.Color();
+  let placed=0;
+  for(let i=0;i<count*3&&placed<count;i++){
+    let radius,branch,angle;
+    if(opts.inner){
+      /* Dense inner disk: concentrated near center */
+      radius=Math.pow(rnd(),0.9)*GAL_R*0.35;
+      branch=((i%BRANCHES)/BRANCHES)*TAU;
+      angle=branch+SPIN*Math.log(1+radius/GAL_R*3.0);
+    } else {
+      radius=Math.pow(rnd(),0.65)*GAL_R;
+      branch=((i%BRANCHES)/BRANCHES)*TAU;
+      angle=branch+SPIN*Math.log(1+radius/GAL_R*3.0);
+    }
+    /* Wider arms, denser packing */
+    const baseSpread=opts.inner? radius*0.06+15 : radius*0.10+40;
+    const spread=baseSpread*(0.5+0.5*Math.pow(radius/GAL_R,0.35));
+    const jx=(rnd()+rnd()+rnd()-1.5)*1.1*spread;
+    const jy=(rnd()+rnd()+rnd()-1.5)*1.1*spread*(opts.inner?0.25:0.45);
+    const jz=(rnd()+rnd()+rnd()-1.5)*1.1*spread;
+    const bulge=Math.exp(-radius/500);
+    const armPhase=Math.abs(Math.sin((angle-branch)*0.5*BRANCHES));
+    /* Fatter arm profile (lower exponent) + higher acceptance */
+    const armDensity=Math.pow(1.0-armPhase*0.8, 1.4);
+    const accept=opts.inner? armDensity*0.7 : armDensity*0.95;
+    if(rnd()>accept && radius>GAL_R*0.12) continue;
+    pos[placed*3]=Math.cos(angle)*radius+jx; 
+    pos[placed*3+1]=jy*(0.4+bulge*3.0)+(rnd()-0.5)*160*bulge+(rnd()-0.5)*35*Math.pow(1-radius/GAL_R,0.5); 
+    pos[placed*3+2]=Math.sin(angle)*radius+jz;
+    tmp.copy(cIn).lerp(cOut,Math.pow(radius/GAL_R,0.85));
+    const r=rnd();
+    if(opts.bright){ tmp.copy(rnd()<0.5?cHot:new THREE.Color('#fff3dd')).multiplyScalar(0.9+rnd()*0.6); }
+    else{ if(r<0.035&&armPhase<0.4) tmp.copy(cHII).multiplyScalar(0.8+rnd()*0.5);
+      else if(r<0.06) tmp.copy(cHot).multiplyScalar(0.9+rnd()*0.5);
+      else tmp.multiplyScalar(opts.inner?0.7+rnd()*0.6 : 0.55+rnd()*0.75); }
+    col[placed*3]=tmp.r; col[placed*3+1]=tmp.g; col[placed*3+2]=tmp.b;
+    placed++;
+  }
+  const geo=new THREE.BufferGeometry();
+  geo.setAttribute('position',new THREE.BufferAttribute(pos.subarray(0,placed*3),3));
+  geo.setAttribute('color',new THREE.BufferAttribute(col.subarray(0,placed*3),3));
+  return new THREE.Points(geo,new THREE.PointsMaterial({size,sizeAttenuation:true,map:softTex,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,vertexColors:true,fog:false}));
+}
+galaxyGroup.add(buildGalaxyPoints(500000,4));
+galaxyGroup.add(buildGalaxyPoints(15000,12,{bright:true}));
+/* Dense inner disk — many more stars near the core */
+galaxyGroup.add(buildGalaxyPoints(80000,3,{inner:true}));
+/* Scattered halo stars — sparse spherical distribution */
+(function(){ const count=25000,pos=new Float32Array(count*3),col=new Float32Array(count*3);
+  const cHalo=new THREE.Color('#dde4ff'),cWarm=new THREE.Color('#ffd9a6');
+  const tmp=new THREE.Color();
+  for(let i=0;i<count;i++){
+    const r=800+Math.pow(rnd(),0.5)*GAL_R*1.3;
+    const th=rnd()*TAU,ph=Math.acos(2*rnd()-1);
+    pos[i*3]=r*Math.sin(ph)*Math.cos(th); pos[i*3+1]=r*Math.cos(ph)*0.7; pos[i*3+2]=r*Math.sin(ph)*Math.sin(th);
+    tmp.copy(rnd()<0.5?cHalo:cWarm).multiplyScalar(0.4+rnd()*0.4);
+    col[i*3]=tmp.r;col[i*3+1]=tmp.g;col[i*3+2]=tmp.b; }
+  const geo=new THREE.BufferGeometry(); geo.setAttribute('position',new THREE.BufferAttribute(pos,3));
+  geo.setAttribute('color',new THREE.BufferAttribute(col,3));
+  galaxyGroup.add(new THREE.Points(geo,new THREE.PointsMaterial({size:3,sizeAttenuation:true,map:softTex,transparent:true,opacity:0.5,vertexColors:true,depthWrite:false,blending:THREE.AdditiveBlending,fog:false}))); })();
+/* Dust lanes — dark streaks matching wider arms */
+(function(){ const count=50000,pos=new Float32Array(count*3);
+  let placed=0;
+  for(let i=0;i<count*3&&placed<count;i++){
+    const radius=200+Math.pow(rnd(),0.75)*GAL_R*0.9;
+    const branch=((i%BRANCHES)/BRANCHES)*TAU; 
+    const angle=branch+SPIN*Math.log(1+radius/GAL_R*3.0)+0.08;
+    const spread=radius*0.07+20;
+    const armPhase=Math.abs(Math.sin((angle-branch)*0.5*BRANCHES));
+    if(rnd()>Math.pow(1.0-armPhase*0.7,1.4)*0.85) continue;
+    pos[placed*3]=Math.cos(angle)*radius+(rnd()-0.5)*spread*2; 
+    pos[placed*3+1]=(rnd()-0.5)*30; 
+    pos[placed*3+2]=Math.sin(angle)*radius+(rnd()-0.5)*spread*2;
+    placed++;
+  }
+  const geo=new THREE.BufferGeometry(); geo.setAttribute('position',new THREE.BufferAttribute(pos.subarray(0,placed*3),3));
+  galaxyGroup.add(new THREE.Points(geo,new THREE.PointsMaterial({size:22,sizeAttenuation:true,map:softTex,transparent:true,opacity:0.22,color:0x1e140e,depthWrite:false,blending:THREE.NormalBlending,fog:false}))); })();
+/* Dense bright core */
+const core1=radialSprite([[0,'rgba(255,240,214,0.55)'],[0.2,'rgba(255,214,150,0.25)'],[0.5,'rgba(255,190,120,0.08)'],[1,'rgba(255,170,100,0)']],0.35);
+core1.scale.set(800,800,1); galaxyGroup.add(core1);
+const core2=radialSprite([[0,'rgba(255,250,235,0.45)'],[0.4,'rgba(255,225,170,0.18)'],[1,'rgba(255,210,150,0)']],0.4);
+core2.scale.set(350,350,1); galaxyGroup.add(core2);
+/* HII regions & nebulae along arms */
+const nebCols=['#ff9fb8','#7fb2ff','#b79bff','#8fe3d8','#ff7090'];
+for(let i=0;i<80;i++){ const radius=500+rnd()*3400; const branch=Math.floor(rnd()*BRANCHES);
+  const angle=branch/BRANCHES*TAU+SPIN*Math.log(1+radius/GAL_R*3.0);
+  const n=radialSprite([[0,rgba(nebCols[i%nebCols.length],0.6)],[1,rgba(nebCols[i%nebCols.length],0)]]);
+  const s=280+rnd()*520; n.scale.set(s,s,1); n.material.opacity=0.06+rnd()*0.05;
+  n.position.set(Math.cos(angle)*radius+(rnd()-0.5)*180,(rnd()-0.5)*60,Math.sin(angle)*radius+(rnd()-0.5)*180);
+  galaxyGroup.add(n); }
+function buildBgStars(count,size,rMin,rSpan,op){
+  const pos=new Float32Array(count*3),col=new Float32Array(count*3);
+  const palette=['#9db4ff','#cad7ff','#f8f6ee','#fff3dd','#ffd9a6','#ffb670'];
+  const w=[0.12,0.18,0.28,0.2,0.14,0.08]; const c=new THREE.Color();
+  for(let i=0;i<count;i++){ const R0=rMin+rnd()*rSpan; const th=rnd()*TAU, ph=Math.acos(2*rnd()-1);
+    pos[i*3]=R0*Math.sin(ph)*Math.cos(th); pos[i*3+1]=R0*Math.cos(ph); pos[i*3+2]=R0*Math.sin(ph)*Math.sin(th);
+    let u=rnd(),acc=0,ci=0; for(let k=0;k<w.length;k++){ acc+=w[k]; if(u<=acc){ci=k;break;} }
+    c.set(palette[ci]).multiplyScalar(0.7+rnd()*0.5);
+    col[i*3]=c.r; col[i*3+1]=c.g; col[i*3+2]=c.b; }
+  const geo=new THREE.BufferGeometry();
+  geo.setAttribute('position',new THREE.BufferAttribute(pos,3));
+  geo.setAttribute('color',new THREE.BufferAttribute(col,3));
+  const mat=new THREE.PointsMaterial({size,sizeAttenuation:true,map:softTex,transparent:true,opacity:op,vertexColors:true,depthWrite:false,blending:THREE.AdditiveBlending,fog:false});
+  scene.add(new THREE.Points(geo,mat)); return mat;
+}
+const bgStarMats=[];
+bgStarMats.push(buildBgStars(5200,40,13000,2800,0.95));
+let bgMat2; bgStarMats.push(bgMat2=buildBgStars(1500,90,13000,2800,0.85));
+bgStarMats.push(buildBgStars(2600,34,20000,45000,0.5));
+bgStarMats.push(buildBgStars(4000,28,30000,15000,0.65));
+bgStarMats.push(buildBgStars(2000,20,50000,30000,0.4));
+bgStarMats.push(buildBgStars(1200,50,12000,8000,0.7));
+
+/* ---- NEBULA CLOUDS scattered in deep space ---- */
+const bgDeepGroup=new THREE.Group(); scene.add(bgDeepGroup); /* all deep-space elements dimmed near solar system */
+(function(){
+  function hexToRgb(hex){ const n=parseInt(hex.slice(1),16); return `${(n>>16)&255},${(n>>8)&255},${n&255}`; }
+  const nebulae=[
+    {pos:[12000,3000,-8000],col:'#ff6088',size:2800,op:0.06},
+    {pos:[-15000,-2000,12000],col:'#6080ff',size:3500,op:0.045},
+    {pos:[8000,5000,15000],col:'#9040cc',size:2200,op:0.05},
+    {pos:[-6000,8000,-12000],col:'#ff4444',size:2000,op:0.04},
+    {pos:[20000,-4000,5000],col:'#ff8844',size:3200,op:0.035},
+    {pos:[-10000,6000,-20000],col:'#44aacc',size:2600,op:0.04},
+  ];
+  for(const nb of nebulae){
+    const rgb=hexToRgb(nb.col);
+    const nTex=canvasTex(256,256,(g)=>{
+      const cx=128,cy=128;
+      for(let k=0;k<6;k++){
+        const r=30+k*18, op=0.3-k*0.04;
+        const gr=g.createRadialGradient(cx+rnd()*20-10,cy+rnd()*20-10,r*0.1,cx,cy,r);
+        gr.addColorStop(0,`rgba(${rgb},${op})`);
+        gr.addColorStop(0.5,`rgba(${rgb},${op*0.4})`);
+        gr.addColorStop(1,'rgba(0,0,0,0)');
+        g.fillStyle=gr; g.fillRect(0,0,256,256);
+      }
+      for(let i=0;i<80;i++){
+        const a=rnd()*TAU, r2=rnd()*100;
+        g.fillStyle=`rgba(255,255,245,${0.3+rnd()*0.4})`;
+        g.beginPath(); g.arc(128+Math.cos(a)*r2,128+Math.sin(a)*r2,0.5+rnd()*1.5,0,TAU); g.fill();
+      }
+    });
+    const mat=new THREE.SpriteMaterial({map:nTex,transparent:true,opacity:nb.op,blending:THREE.AdditiveBlending,depthWrite:false,fog:false});
+    const sp=new THREE.Sprite(mat);
+    sp.position.set(nb.pos[0],nb.pos[1],nb.pos[2]);
+    sp.scale.set(nb.size,nb.size,1);
+    bgDeepGroup.add(sp);
+  }
+})();
+
+/* =========================================================
+   ANDROMEDA (M31) — huge 3D spiral galaxy at distance
+   ========================================================= */
+let andr; /* global ref for dimming */
+(function buildAndromeda(){
+  const ANDR_POS=new THREE.Vector3(-35000,4000,25000);
+  andr=new THREE.Group(); andr.position.copy(ANDR_POS); scene.add(andr);
+  const ANDR_R=6500, ANDR_SPIN=4.2, ANDR_ARMS=2, ANDR_STARS=220000;
+  const pos=new Float32Array(ANDR_STARS*3),col=new Float32Array(ANDR_STARS*3);
+  const tmp=new THREE.Color();
+  /* Tilt ~35° — more face-on so we see the spiral arms */
+  const tiltY=Math.cos(35*RAD), tiltFlatten=0.32;
+  for(let i=0;i<ANDR_STARS;i++){
+    const u=rnd();
+    let r;
+    if(u<0.35) r=800*Math.pow(rnd(),2.2);
+    else if(u<0.72) r=800+4000*Math.pow(rnd(),1.3);
+    else r=4800+(-ANDR_R*Math.log(Math.max(0.001,1-rnd()*0.98)));
+    const theta=rnd()*TAU;
+    const arm=Math.floor(rnd()*ANDR_ARMS)/ANDR_ARMS*TAU;
+    const angle=arm+ANDR_SPIN*Math.log(1+r/ANDR_R*2.8);
+    const spread=r*0.07+30;
+    const jx=(rnd()+rnd()+rnd()-1.5)*spread;
+    const jz=(rnd()+rnd()+rnd()-1.5)*spread;
+    const jy=(rnd()+rnd()+rnd()-1.5)*spread*0.55;
+    /* Apply tilt: rotate around X axis, then flatten Y slightly */
+    const rawY=jy;
+    pos[i*3]=Math.cos(angle)*r+jx;
+    pos[i*3+1]=rawY*tiltFlatten + Math.sin(35*RAD)*(Math.sin(angle)*r*tiltY+jz)*0.18;
+    pos[i*3+2]=Math.sin(angle)*r*tiltY + jz;
+    const t=Math.min(r/ANDR_R,1);
+    const armPhase=Math.abs(Math.sin((angle-arm)*0.5*ANDR_ARMS));
+    const armDense=Math.pow(1.0-armPhase*0.7,1.5);
+    if(rnd()>armDense*0.8&&r>ANDR_R*0.15) continue;
+    const rr=rnd();
+    if(rr<0.04&&t<0.3){ tmp.setRGB(0.7,0.82,1.0).multiplyScalar(0.9+rnd()*0.5); }
+    else if(rr<0.14){ tmp.setRGB(1.0,0.62,0.32).multiplyScalar(0.8+rnd()*0.5); }
+    else if(rr<0.35){ tmp.setRGB(0.98,0.90,0.72).multiplyScalar(0.6+rnd()*0.5); }
+    else { tmp.setRGB(0.88,0.82,0.68).multiplyScalar(0.4+rnd()*0.4); }
+    col[i*3]=tmp.r; col[i*3+1]=tmp.g; col[i*3+2]=tmp.b;
+  }
+  const geo=new THREE.BufferGeometry();
+  geo.setAttribute('position',new THREE.BufferAttribute(pos,3));
+  geo.setAttribute('color',new THREE.BufferAttribute(col,3));
+  const pts=new THREE.Points(geo,new THREE.PointsMaterial({
+    size:8,sizeAttenuation:true,map:softTex,transparent:true,opacity:0.75,
+    vertexColors:true,depthWrite:false,blending:THREE.AdditiveBlending,fog:false
+  }));
+  andr.add(pts);
+  /* Bright elliptical core — high-res canvas gradient with smooth alpha falloff */
+  const coreTex=canvasTex(512,512,(g)=>{
+    g.clearRect(0,0,512,512);
+    /* Multi-layer radial gradient for smooth elliptical glow */
+    const layers=[
+      {r:50,  a:1.0,  c:[255,245,220]},
+      {r:80,  a:0.75, c:[255,235,200]},
+      {r:115, a:0.45, c:[255,220,175]},
+      {r:150, a:0.20, c:[255,205,150]},
+      {r:185, a:0.08, c:[255,190,135]},
+      {r:220, a:0.02, c:[255,175,120]},
+      {r:250, a:0.0,  c:[255,160,100]}
+    ];
+    for(const l of layers){
+      const gr=g.createRadialGradient(256,256,0,256,256,l.r);
+      gr.addColorStop(0,`rgba(${l.c[0]},${l.c[1]},${l.c[2]},${l.a})`);
+      gr.addColorStop(0.7,`rgba(${l.c[0]},${l.c[1]},${l.c[2]},${l.a*0.3})`);
+      gr.addColorStop(1,`rgba(${l.c[0]},${l.c[1]},${l.c[2]},0)`);
+      g.fillStyle=gr;
+      g.beginPath(); g.arc(256,256,l.r,0,TAU); g.fill();
+    }
+  });
+  const core=new THREE.Sprite(new THREE.SpriteMaterial({map:coreTex,transparent:true,opacity:0.8,blending:THREE.AdditiveBlending,depthWrite:false,fog:false}));
+  core.scale.set(3400,2000,1); andr.add(core);
+  /* Dust lane ring */
+  const dustTex=canvasTex(256,256,(g)=>{
+    g.save(); g.translate(128,128); g.scale(1.0,0.32);
+    g.strokeStyle='rgba(180,140,100,0.25)'; g.lineWidth=12;
+    g.beginPath(); g.arc(0,0,95,0,TAU); g.stroke();
+    g.strokeStyle='rgba(140,100,70,0.12)'; g.lineWidth=7;
+    g.beginPath(); g.arc(0,0,110,0,TAU); g.stroke();
+    g.restore();
+  });
+  const dust=new THREE.Sprite(new THREE.SpriteMaterial({map:dustTex,transparent:true,opacity:0.35,blending:THREE.NormalBlending,depthWrite:false,fog:false}));
+  dust.scale.set(7000,3200,1); andr.add(dust);
+  /* Faint outer halo */
+  const halo=radialSprite([[0,'rgba(230,220,200,0.1)'],[0.5,'rgba(220,210,190,0.03)'],[1,'rgba(210,200,180,0)']],0.1);
+  halo.scale.set(13000,8000,1); andr.add(halo);
+  /* Satellite galaxies M32 and M110 */
+  const m32=radialSprite([[0,'rgba(255,240,215,0.8)'],[0.4,'rgba(255,220,180,0.3)'],[1,'rgba(255,200,150,0)']],0.6);
+  m32.scale.set(500,450,1); m32.position.set(1200,300,800); andr.add(m32);
+  const m110=radialSprite([[0,'rgba(240,230,215,0.6)'],[0.5,'rgba(230,215,190,0.2)'],[1,'rgba(220,200,170,0)']],0.45);
+  m110.scale.set(700,300,1); m110.position.set(-1500,-300,-1000); andr.add(m110);
+  /* Label */
+  const lb=makeLabel('Andromède (M31)');
+  lb.scale.set(120,15,1); lb.position.y=2200; andr.add(lb);
+  /* Slow rotation */
+  andr.userData.spin=0.0003;
+  /* Store for tick animation */
+  window._andrGroup=andr;
+})();
+
+/* ================= GALAXIES LOINTAINES & AMAS ================= */
+function makeGalaxyTextures(){
+  const texs=[];
+  function spiral(coreHex,armHex,nArms,spinF){
+    return canvasTex(256,256,(g)=>{ g.clearRect(0,0,256,256);
+      const gr=g.createRadialGradient(128,128,0,128,128,126);
+      gr.addColorStop(0,rgba(coreHex,0.55)); gr.addColorStop(0.45,rgba(armHex,0.12)); gr.addColorStop(1,'rgba(0,0,0,0)');
+      g.fillStyle=gr; g.fillRect(0,0,256,256);
+      for(let i=0;i<4200;i++){ const r=Math.pow(rnd(),0.68)*118;
+        const arm=Math.floor(rnd()*nArms)/nArms*TAU;
+        const ang=arm+spinF*(r/118)*3.4+(rnd()-0.5)*(0.5-r/300);
+        g.fillStyle=rgba(r/118<0.25?coreHex:armHex,0.10+rnd()*0.35);
+        g.fillRect(128+Math.cos(ang)*r+(rnd()-0.5)*(6+r*0.14),128+Math.sin(ang)*r+(rnd()-0.5)*(6+r*0.16),0.6+rnd()*1.8,0.6+rnd()*1.8); }
+      blob(g,128,128,26,coreHex,0.9); blob(g,128,128,10,'#fff6e6',0.95); });
+  }
+  texs.push(spiral('#ffd9a3','#7f9fe8',2,1.0),spiral('#ffe2b8','#9fb8ff',3,1.4),spiral('#f5d9a0','#6f8fd0',2,0.8));
+  texs.push(canvasTex(256,256,(g)=>{ g.clearRect(0,0,256,256);
+    g.save(); g.translate(128,128); g.scale(1.35,1);
+    const gr=g.createRadialGradient(0,0,0,0,0,95);
+    gr.addColorStop(0,'rgba(255,238,210,0.95)'); gr.addColorStop(0.35,'rgba(250,220,170,0.5)'); gr.addColorStop(1,'rgba(240,200,150,0)');
+    g.fillStyle=gr; g.beginPath(); g.arc(0,0,95,0,TAU); g.fill(); g.restore();
+    for(let i=0;i<400;i++){ const a=rnd()*TAU, rr=Math.pow(rnd(),0.6)*105;
+      g.fillStyle=rgba('#ffe8c0',0.08+rnd()*0.15);
+      g.fillRect(128+Math.cos(a)*rr*1.35,128+Math.sin(a)*rr,1.2,1.2); } }));
+  texs.push(canvasTex(256,256,(g)=>{ g.clearRect(0,0,256,256);
+    g.save(); g.translate(128,128); g.scale(1.9,0.32);
+    const gr=g.createRadialGradient(0,0,0,0,0,70);
+    gr.addColorStop(0,'rgba(255,235,200,0.95)'); gr.addColorStop(0.5,'rgba(210,190,220,0.4)'); gr.addColorStop(1,'rgba(160,160,220,0)');
+    g.fillStyle=gr; g.fillRect(-80,-80,160,160); g.restore();
+    g.fillStyle='rgba(20,12,10,0.55)'; g.fillRect(10,126,236,3);
+    blob(g,128,128,16,'#fff0d8',0.9); }));
+  return texs;
+}
+const galTexs=makeGalaxyTextures();
+const galTints=['#ffffff','#d6e0ff','#fff3dc','#ffe0cc','#e8eeff','#ffeecf'];
+function addGalaxySprite(pos,scale,parent){
+  const mat=new THREE.SpriteMaterial({map:galTexs[Math.floor(rnd()*galTexs.length)],transparent:true,opacity:0.92,fog:false,rotation:rnd()*TAU,depthWrite:false});
+  mat.color.set(galTints[Math.floor(rnd()*galTints.length)]);
+  const s=new THREE.Sprite(mat); s.position.copy(pos); s.scale.set(scale,scale,1);
+  if(parent) parent.add(s); else bgDeepGroup.add(s);
+  return s;
+}
+for(let i=0;i<85;i++){ const R0=18000+rnd()*34000; const th=rnd()*TAU, ph=Math.acos(2*rnd()-1);
+  addGalaxySprite(new THREE.Vector3(R0*Math.sin(ph)*Math.cos(th),R0*Math.cos(ph)*0.7,R0*Math.sin(ph)*Math.sin(th)),500+rnd()*1300); }
+const clusters=[];
+function makeCluster(center,spread,n){
+  const grp=new THREE.Group(); grp.position.copy(center); scene.add(grp);
+  const haze=radialSprite([[0,'rgba(255,235,205,0.15)'],[1,'rgba(255,220,180,0)']],0.05);
+  haze.scale.set(spread*5,spread*5,1); haze.position.set(0,0,0); grp.add(haze);
+  for(let i=0;i<n;i++){ const off=new THREE.Vector3((rnd()+rnd()-1)*spread,(rnd()+rnd()-1)*spread*0.55,(rnd()+rnd()-1)*spread);
+    addGalaxySprite(off,140+rnd()*380,grp); }
+  clusters.push({center,spread,grp});
+}
+makeCluster(new THREE.Vector3(1,0.28,-0.7).normalize().multiplyScalar(21000),1600,14);
+for(let i=0;i<5;i++){ const dir=new THREE.Vector3(rnd()*2-1,(rnd()*2-1)*0.5,rnd()*2-1).normalize();
+  makeCluster(dir.multiplyScalar(16000+rnd()*20000),1000+rnd()*1100,8+Math.floor(rnd()*10)); }
+
+/* =========================================================
+   🔭 AMAS GLOBULAIRE M13 (HERCULES) — 3D FLYABLE
+   Dense core resolving to individual stars, no hard edge
+   ========================================================= */
+const M13_POS=new THREE.Vector3(-6800,1200,5400);
+const m13Group=new THREE.Group(); m13Group.position.copy(M13_POS); scene.add(m13Group);
+(function buildM13(){
+  const N=280000;
+  const pos=new Float32Array(N*3),col=new Float32Array(N*3),sizes=new Float32Array(N);
+  const tmp=new THREE.Color();
+  for(let i=0;i<N;i++){
+    /* King profile with NO hard edge — exponential tail fades to infinity */
+    const u=rnd();
+    let r;
+    if(u<0.50){
+      /* Dense core: ~50% of stars packed in tiny region */
+      r=5.5*Math.pow(rnd(),2.6);
+    } else if(u<0.82){
+      /* Main body */
+      r=5.5+20*Math.pow(rnd(),1.4);
+    } else {
+      /* Extended halo: long exponential tail, no cutoff */
+      r=25+(-30*Math.log(1-rnd())); /* exponential distribution */
+    }
+    /* Spherical distribution */
+    const theta=rnd()*TAU;
+    const phi=Math.acos(2*rnd()-1);
+    const flatten=0.93;
+    pos[i*3]=r*Math.sin(phi)*Math.cos(theta);
+    pos[i*3+1]=r*Math.cos(phi)*flatten;
+    pos[i*3+2]=r*Math.sin(phi)*Math.sin(theta);
+    /* Distance from center for color/brightness */
+    const t=Math.min(r/50,1.0);
+    const rr=rnd();
+    /* Stars dimmer toward edge (not projecton-brighter in core) */
+    const fade=1.0/(1.0+t*1.8);
+    if(rr<0.035&&t<0.3){
+      /* Blue stragglers — rare, hot, in core only */
+      tmp.setRGB(0.6,0.75,1.0).multiplyScalar(0.9+rnd()*0.5);
+      sizes[i]=(1.5+rnd()*2.5)*fade;
+    } else if(rr<0.13){
+      /* Red giants */
+      tmp.setRGB(1.0,0.58+rnd()*0.12,0.28+rnd()*0.1).multiplyScalar(0.8+rnd()*0.5);
+      sizes[i]=(1.2+rnd()*2.2)*fade;
+    } else if(rr<0.30){
+      /* Orange subgiants */
+      tmp.setRGB(1.0,0.73+rnd()*0.08,0.42+rnd()*0.1).multiplyScalar(0.7+rnd()*0.45);
+      sizes[i]=(0.9+rnd()*1.8)*fade;
+    } else if(rr<0.62){
+      /* Yellow-white main sequence */
+      tmp.setRGB(0.97,0.90+rnd()*0.06,0.70+rnd()*0.1).multiplyScalar(0.55+rnd()*0.45);
+      sizes[i]=(0.6+rnd()*1.5)*fade;
+    } else {
+      /* Dim red dwarfs — many, faint */
+      tmp.setRGB(0.92,0.52+rnd()*0.12,0.28+rnd()*0.08).multiplyScalar(0.35+rnd()*0.3);
+      sizes[i]=(0.4+rnd()*1.0)*fade;
+    }
+    col[i*3]=tmp.r; col[i*3+1]=tmp.g; col[i*3+2]=tmp.b;
+  }
+  const geo=new THREE.BufferGeometry();
+  geo.setAttribute('position',new THREE.BufferAttribute(pos,3));
+  geo.setAttribute('color',new THREE.BufferAttribute(col,3));
+  geo.setAttribute('size',new THREE.BufferAttribute(sizes,1));
+  /* Custom shader: smaller stars, NormalBlending so core doesn't white-out */
+  const m13Mat=new THREE.ShaderMaterial({
+    uniforms:{uTex:{value:softTex},uPixelRatio:{value:Math.min(devicePixelRatio,2)}},
+    vertexShader:`
+      attribute float size;
+      attribute vec3 color;
+      varying vec3 vCol;
+      uniform float uPixelRatio;
+      void main(){
+        vCol=color;
+        vec4 mv=modelViewMatrix*vec4(position,1.0);
+        gl_PointSize=size*uPixelRatio*(180.0/(-mv.z));
+        gl_PointSize=clamp(gl_PointSize,0.3,10.0);
+        gl_Position=projectionMatrix*mv;
+      }`,
+    fragmentShader:`
+      uniform sampler2D uTex;
+      varying vec3 vCol;
+      void main(){
+        vec4 t=texture2D(uTex,gl_PointCoord);
+        gl_FragColor=vec4(vCol*t.rgb,t.a*0.85);
+      }`,
+    transparent:true,depthWrite:false,blending:THREE.NormalBlending,fog:false});
+  const pts=new THREE.Points(geo,m13Mat);
+  m13Group.add(pts);
+
+  /* Subtle core glow — just enough to suggest unresolved density */
+  const glow1=radialSprite([
+    [0,'rgba(255,235,200,0.35)'],
+    [0.25,'rgba(255,215,170,0.12)'],
+    [0.6,'rgba(255,195,140,0.03)'],
+    [1,'rgba(255,170,110,0)']],0.35);
+  glow1.scale.set(18,18,1); m13Group.add(glow1);
+  /* Faint outer haze */
+  const haze=radialSprite([
+    [0,'rgba(240,230,215,0.06)'],
+    [0.5,'rgba(235,220,200,0.02)'],
+    [1,'rgba(220,200,180,0)']],0.25);
+  haze.scale.set(80,80,1); m13Group.add(haze);
+  /* Label */
+  const lb=makeLabel('M13 — Amas d\'Hercule');
+  lb.scale.set(50,6.25,1); lb.position.y=65; m13Group.add(lb);
+})();
+
+/* ================= TROUS NOIRS ================= */
+const accretionDisks=[];
+/* ---------- ACCRETION DISK SHADER ---------- */
+function makeAccretionDisk(inner,outer,centerVec){
+  const mat=new THREE.ShaderMaterial({
+    uniforms:{uTime:{value:0},uInner:{value:inner},uOuter:{value:outer},uCenter:{value:centerVec}},
+    vertexShader:`varying vec3 vWorld; varying vec2 vLocal;
+      void main(){ vLocal=position.xy; vec4 wp=modelMatrix*vec4(position,1.0); vWorld=wp.xyz;
+      gl_Position=projectionMatrix*viewMatrix*wp; }`,
+    fragmentShader:`uniform float uTime; uniform float uInner; uniform float uOuter; uniform vec3 uCenter;
+      varying vec3 vWorld; varying vec2 vLocal;
+      /* simplex-like turbulence */
+      float hash(vec2 p){ return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453); }
+      float noise(vec2 p){ vec2 i=floor(p), f=fract(p); f=f*f*(3.0-2.0*f);
+        return mix(mix(hash(i),hash(i+vec2(1,0)),f.x),mix(hash(i+vec2(0,1)),hash(i+vec2(1,1)),f.x),f.y); }
+      float fbm(vec2 p){ float v=0.0; float a=0.5; for(int i=0;i<4;i++){ v+=a*noise(p); p*=2.1; a*=0.5; } return v; }
+      void main(){
+        float r=length(vLocal); float t=clamp((r-uInner)/(uOuter-uInner),0.0,1.0);
+        float ang=atan(vLocal.y,vLocal.x);
+        /* Keplerian rotation: inner = fast, outer = slow */
+        float kepler=1.0/(0.18+t*t*0.7);
+        float swirl=ang+uTime*kepler*0.9;
+        /* Turbulent bands */
+        float turb=fbm(vec2(swirl*3.0+r*2.0, r*5.0+uTime*0.3));
+        float b1=0.5+0.5*sin(swirl*6.0+sin(swirl*2.5+1.3)*2.0+r*0.4);
+        float b2=0.6+0.4*sin(swirl*14.0+4.2+turb*3.0);
+        float bands=mix(b1,b2,0.4)*0.7+0.3+turb*0.35;
+        /* Temperature gradient: hot white-blue inner → orange → dark red outer */
+        vec3 veryHot=vec3(1.0,0.98,0.96);
+        vec3 hot=vec3(1.0,0.88,0.65);
+        vec3 mid=vec3(1.0,0.55,0.18);
+        vec3 cool=vec3(0.7,0.22,0.08);
+        vec3 dark=vec3(0.25,0.06,0.02);
+        vec3 col=mix(veryHot,hot,smoothstep(0.0,0.12,t));
+        col=mix(col,mid,smoothstep(0.12,0.35,t));
+        col=mix(col,cool,smoothstep(0.35,0.7,t));
+        col=mix(col,dark,smoothstep(0.7,1.0,t));
+        /* Radial fade */
+        float fade=smoothstep(uInner,uInner+(uOuter-uInner)*0.04,r)
+                   *(1.0-smoothstep(uOuter-(uOuter-uInner)*0.30,uOuter,r));
+        /* DOPPLER BEAMING: strong asymmetry */
+        vec3 rel=normalize(vWorld-uCenter);
+        vec3 tang=normalize(cross(vec3(0.0,1.0,0.0),rel));
+        vec3 viewDir=normalize(cameraPosition-vWorld);
+        float dop=dot(tang,viewDir); /* +1 = approaching, -1 = receding */
+        /* Approaching side: bright + blue-shifted */
+        col=mix(col,col*vec3(1.4,1.1,0.85),clamp(dop,0.0,1.0)*0.6);
+        /* Receding side: dim + red-shifted */
+        col=mix(col,col*vec3(0.5,0.3,0.2),clamp(-dop,0.0,1.0)*0.55);
+        /* Intensity: Doppler modulation */
+        float boost=clamp(1.0+2.5*dop,0.15,3.5);
+        float a=fade*bands*boost;
+        gl_FragColor=vec4(col*a*1.1,a); }`,
+    side:THREE.DoubleSide,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending});
+  accretionDisks.push(mat);
+  const m=new THREE.Mesh(new THREE.RingGeometry(inner,outer,160,1),mat);
+  m.rotation.x=-Math.PI/2; m.renderOrder=1; return m;
+}
+/* ---------- GRAVITATIONAL LENSING "HAT" SHADER ---------- */
+/* Warps background stars behind BH into an arc above/below */
+function makeLensingHat(horizon,outerR){
+  const mat=new THREE.ShaderMaterial({
+    uniforms:{uTime:{value:0},uShadow:{value:horizon*2.6}},
+    vertexShader:`varying vec2 vLocal; varying vec3 vWorld;
+      void main(){ vLocal=position.xy; vec4 wp=modelMatrix*vec4(position,1.0); vWorld=wp.xyz;
+      gl_Position=projectionMatrix*viewMatrix*wp; }`,
+    fragmentShader:`uniform float uTime; uniform float uShadow; varying vec2 vLocal; varying vec3 vWorld;
+      void main(){
+        float r=length(vLocal);
+        float t=clamp(r/uShadow,0.0,3.0);
+        /* Ring of lensed light: brightest at ~1.5-2× shadow radius */
+        float ring=exp(-pow((t-1.7)/0.35,2.0));
+        /* Turbulent flicker */
+        float flick=0.8+0.2*sin(atan(vLocal.y,vLocal.x)*8.0+uTime*2.0);
+        vec3 col=vec3(1.0,0.82,0.48)*ring*flick;
+        /* Fade inner (shadow) and outer */
+        float a=ring*flick*0.12;
+        if(t<0.9) a*=smoothstep(0.5,0.9,t);
+        if(t>2.5) a*=(1.0-smoothstep(2.5,3.5,t));
+        gl_FragColor=vec4(col*a,a); }`,
+    side:THREE.DoubleSide,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending});
+  const m=new THREE.Mesh(new THREE.RingGeometry(horizon*0.5,outerR,128,1),mat);
+  m.rotation.x=-Math.PI/2; m.renderOrder=2; return m;
+}
+/* ---------- PHOTON RING TEXTURE ---------- */
+const photonTex=canvasTex(512,512,(g)=>{
+  g.clearRect(0,0,512,512);
+  /* Asymmetric photon ring: brighter on one side (Doppler) */
+  const cx=256,cy=256;
+  for(let a=0;a<360;a+=1){
+    const rad=a*Math.PI/180;
+    const dop=Math.cos(rad); /* +1 on right (approaching), -1 on left */
+    const brightness=0.35+0.65*Math.max(0,0.5+0.5*dop);
+    const r1=200, r2=220;
+    const x1=cx+Math.cos(rad)*r1, y1=cy+Math.sin(rad)*r1;
+    const x2=cx+Math.cos(rad)*r2, y2=cy+Math.sin(rad)*r2;
+    const grad=g.createLinearGradient(x1,y1,x2,y2);
+    const b=Math.round(brightness*255);
+    grad.addColorStop(0,`rgba(${b},${Math.round(b*0.85)},${Math.round(b*0.6)},0)`);
+    grad.addColorStop(0.5,`rgba(255,${Math.round(240*brightness)},${Math.round(190*brightness)},${brightness*0.95})`);
+    grad.addColorStop(1,`rgba(${b},${Math.round(b*0.7)},${Math.round(b*0.4)},0)`);
+    g.strokeStyle=grad; g.lineWidth=3; g.beginPath();
+    g.moveTo(x1,y1); g.lineTo(x2,y2); g.stroke();
+  }
+  /* Inner bright core of photon ring */
+  const gr2=g.createRadialGradient(256,256,195,256,256,225);
+  gr2.addColorStop(0,'rgba(255,255,240,0)');
+  gr2.addColorStop(0.35,'rgba(255,245,210,0.7)');
+  gr2.addColorStop(0.5,'rgba(255,250,230,0.95)');
+  gr2.addColorStop(0.65,'rgba(255,235,180,0.7)');
+  gr2.addColorStop(1,'rgba(255,200,120,0)');
+  g.fillStyle=gr2; g.fillRect(0,0,512,512);
+});
+function makeBlackHole(cfg){
+  const grp=new THREE.Group();
+  /* 1) Dark event horizon sphere — the absolute black center */
+  grp.add(new THREE.Mesh(new THREE.SphereGeometry(cfg.horizon,48,32),
+    new THREE.MeshBasicMaterial({color:0x000000,fog:false})));
+  /* 2) Inner void sphere — slightly larger pure black sphere for depth */
+  grp.add(new THREE.Mesh(new THREE.SphereGeometry(cfg.horizon*1.8,48,32),
+    new THREE.MeshBasicMaterial({color:0x000000,fog:false,transparent:true,opacity:0.98})));
+  /* 3) Shadow disc — massive dark disc blocking all light behind (EHT shadow) */
+  const shadowDisc=new THREE.Mesh(
+    new THREE.CircleGeometry(cfg.horizon*7,64),
+    new THREE.MeshBasicMaterial({color:0x000000,fog:false,transparent:true,opacity:0.97}));
+  shadowDisc.rotation.x=-Math.PI/2; shadowDisc.renderOrder=0; grp.add(shadowDisc);
+  /* 4) Extra outer shadow — even larger fainter black disc for penumbra */
+  const outerShadow=new THREE.Mesh(
+    new THREE.CircleGeometry(cfg.horizon*10,64),
+    new THREE.MeshBasicMaterial({color:0x000000,fog:false,transparent:true,opacity:0.7}));
+  outerShadow.rotation.x=-Math.PI/2; outerShadow.renderOrder=0; grp.add(outerShadow);
+  /* 5) Photon ring — asymmetric bright ring (EHT-style) */
+  const ring=new THREE.Sprite(new THREE.SpriteMaterial({
+    map:photonTex,transparent:true,blending:THREE.AdditiveBlending,depthWrite:false,fog:false,opacity:0.7}));
+  ring.scale.set(cfg.horizon*6,cfg.horizon*6,1); grp.add(ring);
+  /* 6) Inner hot photon ring */
+  const ring2=radialSprite([
+    [0,'rgba(255,245,220,0.0)'],
+    [0.38,'rgba(255,235,190,0.55)'],
+    [0.48,'rgba(255,250,240,0.72)'],
+    [0.55,'rgba(255,240,200,0.55)'],
+    [1,'rgba(255,200,140,0)']],0.6);
+  ring2.scale.set(cfg.horizon*3.5,cfg.horizon*3.5,1); grp.add(ring2);
+  /* 7) Accretion disk */
+  grp.add(makeAccretionDisk(cfg.diskIn,cfg.diskOut,grp.position));
+  /* 8) Gravitational lensing hat — arc of warped light above/below */
+  grp.add(makeLensingHat(cfg.horizon,cfg.horizon*6));
+  /* 9) Outer diffuse glow — hot gas halo */
+  const glow=radialSprite([
+    [0,'rgba(255,200,120,0.3)'],
+    [0.2,'rgba(255,160,70,0.12)'],
+    [0.5,'rgba(255,110,40,0.03)'],
+    [1,'rgba(200,60,20,0)']],0.3);
+  glow.scale.set(cfg.horizon*22,cfg.horizon*22,1); grp.add(glow);
+  /* 10) Blue-shifted inner edge glow */
+  const blueRing=radialSprite([
+    [0,'rgba(170,200,255,0.22)'],
+    [0.35,'rgba(140,175,255,0.09)'],
+    [1,'rgba(80,120,255,0)']],0.22);
+  blueRing.scale.set(cfg.horizon*5,cfg.horizon*5,1); grp.add(blueRing);
+  return grp;
+}
+const sgrA=makeBlackHole({horizon:55,diskIn:70,diskOut:220}); scene.add(sgrA);
+const sgrLabel=makeLabel('Sagittarius A* — trou noir supermassif');
+sgrLabel.scale.set(52,6.5,1); sgrLabel.position.y=100; sgrA.add(sgrLabel);
+const BH2_POS=new THREE.Vector3(9500,500,7000);
+const bh2=makeBlackHole({horizon:28,diskIn:38,diskOut:120});
+bh2.position.copy(BH2_POS); bh2.rotation.set(0.42,0,0.18); scene.add(bh2);
+const comp=new THREE.Mesh(new THREE.SphereGeometry(5.5,32,24),new THREE.MeshBasicMaterial({color:0xcfe0ff,fog:false}));
+comp.position.set(56,18,-36); bh2.add(comp);
+const compGlow=radialSprite([[0,'rgba(220,235,255,0.95)'],[1,'rgba(160,190,255,0)']],0.8);
+compGlow.scale.set(42,42,1); compGlow.position.copy(comp.position); bh2.add(compGlow);
+const bh2Label=makeLabel('Trou noir stellaire · Cygnus X-1');
+bh2Label.scale.set(34,4.25,1); bh2Label.position.y=42; bh2.add(bh2Label);
+
+/* ================= SYSTÈME SOLAIRE ================= */
+const SOLAR_POS=new THREE.Vector3(2300,60,-1500);
+const systemGroup=new THREE.Group(); systemGroup.position.copy(SOLAR_POS); scene.add(systemGroup);
+/* ---- ANIMATED SUN SHADER ---- */
+const sunShaderMat=new THREE.ShaderMaterial({
+  uniforms:{uTime:{value:0},uBright:{value:1.0}},
+  vertexShader:`varying vec2 vUv; varying vec3 vNormal;
+    void main(){ vUv=uv; vNormal=normalize(normalMatrix*normal); gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }`,
+  fragmentShader:`uniform float uTime; uniform float uBright; varying vec2 vUv; varying vec3 vNormal;
+    float hash(vec2 p){ return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453); }
+    float noise(vec2 p){ vec2 i=floor(p),f=fract(p); f=f*f*(3.0-2.0*f);
+      return mix(mix(hash(i),hash(i+vec2(1,0)),f.x),mix(hash(i+vec2(0,1)),hash(i+vec2(1,1)),f.x),f.y); }
+    float fbm(vec2 p){ float v=0.0,a=0.5; for(int i=0;i<5;i++){ v+=a*noise(p); p*=2.1; a*=0.5; } return v; }
+    void main(){
+      vec2 uv=vUv;
+      /* Rotating convection cells */
+      float t=uTime*0.15;
+      float n1=fbm(uv*8.0+vec2(t*0.3,t*0.2));
+      float n2=fbm(uv*14.0+vec2(-t*0.2,t*0.4)+n1*0.8);
+      float n3=fbm(uv*22.0+vec2(t*0.15,-t*0.1)+n2*0.5);
+      /* Temperature map: granulation pattern */
+      float gran=0.4+0.3*n1+0.2*n2+0.1*n3;
+      /* Base colors: white hot center → orange edge (limb darkening) */
+      float limb=1.0-dot(vNormal,vec3(0.0,0.0,1.0));
+      limb=pow(limb,0.35);
+      vec3 white=vec3(1.0,0.97,0.90);
+      vec3 yellow=vec3(1.0,0.82,0.35);
+      vec3 orange=vec3(0.95,0.55,0.08);
+      vec3 dark=vec3(0.55,0.18,0.02);
+      vec3 col=mix(white,yellow,smoothstep(0.3,0.6,gran));
+      col=mix(col,orange,smoothstep(0.55,0.85,gran));
+      col=mix(col,dark,smoothstep(0.8,1.0,gran));
+      /* Sunspots */
+      float spot1=smoothstep(0.04,0.0,length(uv-vec2(0.55+sin(t*0.7)*0.15,0.48+cos(t*0.5)*0.08)));
+      float spot2=smoothstep(0.03,0.0,length(uv-vec2(0.32+sin(t*0.9+1.0)*0.1,0.62+cos(t*0.6+2.0)*0.06)));
+      float spot3=smoothstep(0.025,0.0,length(uv-vec2(0.70+sin(t*1.1+3.0)*0.08,0.35+cos(t*0.8+1.5)*0.05)));
+      col=mix(col,vec3(0.3,0.12,0.02),clamp(spot1+spot2+spot3,0.0,0.85));
+      /* Bright granulation ridges */
+      float ridge=smoothstep(0.52,0.56,n2)*smoothstep(0.68,0.64,n2);
+      col+=vec3(0.15,0.10,0.03)*ridge;
+      /* Limb darkening */
+      col*=1.0-limb*0.55;
+      /* Subtle time pulsation */
+      col*=0.94+0.06*sin(uTime*0.4+n1*3.0);
+      /* ☀️ slider: photosphere dims / blazes with the light output */
+      col*=uBright;
+      gl_FragColor=vec4(col,1.0); }`
+});
+const sun=new THREE.Mesh(new THREE.SphereGeometry(7,64,48),sunShaderMat);
+systemGroup.add(sun);
+/* ---- REALISTIC SOLAR ATMOSPHERE (no flame sprites) ----
+   Thin chromosphere rim + tenuous corona shell, both view-dependent
+   like the real thing photographed during an eclipse. */
+const sunProms=[];
+const chromoMat=new THREE.ShaderMaterial({
+  uniforms:{uBright:{value:1.0},uTime:{value:0}},
+  transparent:true, blending:THREE.AdditiveBlending, depthWrite:false, side:THREE.FrontSide,
+  vertexShader:`varying vec3 vN; varying vec3 vP;
+    void main(){ vN=normalize(normalMatrix*normal); vec4 mv=modelViewMatrix*vec4(position,1.0);
+      vP=mv.xyz; gl_Position=projectionMatrix*mv; }`,
+  fragmentShader:`uniform float uBright; uniform float uTime; varying vec3 vN; varying vec3 vP;
+    void main(){
+      float rim=1.0-abs(dot(normalize(vN),normalize(-vP)));
+      float band=pow(rim,5.0)*0.85;
+      /* faint plasma texture along the limb */
+      float f=0.9+0.1*sin(vP.y*3.0+uTime*0.6)+0.08*sin(vP.x*4.0-uTime*0.4);
+      vec3 col=mix(vec3(1.0,0.62,0.24),vec3(1.0,0.86,0.62),band);
+      gl_FragColor=vec4(col*band*f*uBright,band*uBright);
+    }`
+});
+const chromosphere=new THREE.Mesh(new THREE.SphereGeometry(7.28,64,48),chromoMat);
+systemGroup.add(chromosphere);
+/* Eclipse-style corona: fine radial streamers fading outwards, drawn
+   on a canvas so it has no shell edge and reads like a photograph. */
+function coronaTex(){
+  return canvasTex(512,512,(g)=>{
+    const cx=256,cy=256,R=250,rIn=88;
+    g.clearRect(0,0,512,512);
+    /* base halo, starting just above the photosphere */
+    const base=g.createRadialGradient(cx,cy,rIn*0.92,cx,cy,R);
+    base.addColorStop(0,'rgba(255,240,214,0.55)');
+    base.addColorStop(0.12,'rgba(255,226,180,0.26)');
+    base.addColorStop(0.35,'rgba(255,206,150,0.10)');
+    base.addColorStop(0.7,'rgba(255,190,130,0.03)');
+    base.addColorStop(1,'rgba(255,180,120,0)');
+    g.fillStyle=base; g.beginPath(); g.arc(cx,cy,R,0,TAU); g.fill();
+    /* streamers */
+    g.globalCompositeOperation='lighter';
+    for(let i=0;i<260;i++){
+      const a=rnd()*TAU;
+      const len=rIn+(R-rIn)*(0.18+Math.pow(rnd(),2.0)*0.62);
+      const w=0.004+rnd()*0.014;
+      const alpha=0.035+rnd()*0.10;
+      const gr=g.createLinearGradient(cx+Math.cos(a)*rIn,cy+Math.sin(a)*rIn,
+                                      cx+Math.cos(a)*len,cy+Math.sin(a)*len);
+      gr.addColorStop(0,`rgba(255,238,206,${alpha})`);
+      gr.addColorStop(0.35,`rgba(255,222,178,${alpha*0.45})`);
+      gr.addColorStop(1,'rgba(255,200,150,0)');
+      g.fillStyle=gr;
+      g.beginPath();
+      g.moveTo(cx+Math.cos(a-w)*rIn,cy+Math.sin(a-w)*rIn);
+      g.lineTo(cx+Math.cos(a+w)*rIn,cy+Math.sin(a+w)*rIn);
+      g.lineTo(cx+Math.cos(a+w*2.6)*len,cy+Math.sin(a+w*2.6)*len);
+      g.lineTo(cx+Math.cos(a-w*2.6)*len,cy+Math.sin(a-w*2.6)*len);
+      g.closePath(); g.fill();
+    }
+    /* punch the photosphere area back out so the disc stays crisp */
+    g.globalCompositeOperation='destination-out';
+    const hole=g.createRadialGradient(cx,cy,rIn*0.55,cx,cy,rIn*1.02);
+    hole.addColorStop(0,'rgba(0,0,0,1)'); hole.addColorStop(0.75,'rgba(0,0,0,0.85)');
+    hole.addColorStop(1,'rgba(0,0,0,0)');
+    g.fillStyle=hole; g.beginPath(); g.arc(cx,cy,rIn*1.05,0,TAU); g.fill();
+    g.globalCompositeOperation='source-over';
+  });
+}
+const coronaSprite=new THREE.Sprite(new THREE.SpriteMaterial({map:coronaTex(),transparent:true,
+  opacity:0.7,blending:THREE.AdditiveBlending,depthWrite:false,fog:false}));
+coronaSprite.scale.set(30,30,1); systemGroup.add(coronaSprite);
+
+const sunHalo=radialSprite([[0,'rgba(255,244,214,0.30)'],[0.14,'rgba(255,220,160,0.12)'],
+  [0.4,'rgba(255,180,100,0.035)'],[1,'rgba(255,140,60,0)']],0.5);
+sunHalo.scale.set(46,46,1); systemGroup.add(sunHalo);
+
+const sunLight=new THREE.PointLight(0xfff1d6,2600,0,2);
+sunLight.castShadow=true; sunLight.shadow.mapSize.set(2048,2048);
+sunLight.shadow.camera.near=2; sunLight.shadow.camera.far=260; sunLight.shadow.bias=-0.0012;
+systemGroup.add(sunLight);
+const fill=new THREE.DirectionalLight(0x36466e,0.3);
+fill.position.set(SOLAR_POS.x,600,SOLAR_POS.z+400); scene.add(fill);
+
+function flareTex(c1,c2){ return canvasTex(256,256,(g)=>{
+  const gr=g.createRadialGradient(128,128,0,128,128,128);
+  gr.addColorStop(0,c1); gr.addColorStop(0.3,c2); gr.addColorStop(1,'rgba(0,0,0,0)');
+  g.fillStyle=gr; g.fillRect(0,0,256,256); }); }
+function ringFlareTex(){ return canvasTex(128,128,(g)=>{
+  g.clearRect(0,0,128,128);
+  g.strokeStyle='rgba(160,200,255,0.55)'; g.lineWidth=7;
+  g.beginPath(); g.arc(64,64,38,0,TAU); g.stroke(); }); }
+const lensflare=new Lensflare();
+lensflare.addElement(new LensflareElement(flareTex('rgba(255,255,240,1)','rgba(255,210,130,0.4)'),420,0));
+lensflare.addElement(new LensflareElement(flareTex('rgba(255,235,190,0.9)','rgba(255,190,100,0.15)'),80,0.25,new THREE.Color('#aaccff')));
+lensflare.addElement(new LensflareElement(ringFlareTex(),140,0.45));
+lensflare.addElement(new LensflareElement(flareTex('rgba(200,220,255,0.8)','rgba(140,170,255,0.1)'),60,0.65,new THREE.Color('#8899ff')));
+lensflare.addElement(new LensflareElement(flareTex('rgba(255,220,180,0.8)','rgba(255,180,120,0.1)'),110,0.85,new THREE.Color('#ffcc88')));
+systemGroup.add(lensflare);
+
+const sunLabel=makeLabel('Soleil'); sunLabel.position.y=12; sunLabel.scale.set(10,1.25,1); systemGroup.add(sunLabel);
+const cloudTexG=texClouds(),moonTexG=texMoon(),moonDetailG=texMoonDetailed();
+const EARTH_ROT=0.12;
+const PLANETS=[
+ {name:'Mercure',r:0.85,d:19,tilt:0.01,inc:0.12,rot:0.015,map:texMercure()},
+ {name:'Vénus',r:1.45,d:26,tilt:3.09,inc:0.06,rot:-0.008,map:texVenus(),atmo:{s:1.07,c:'#e8c78a',i:0.8}},
+ {name:'Terre',r:1.5,d:34,tilt:0.41,inc:0.0,rot:EARTH_ROT,map:earthMaps.day,roughMap:earthMaps.rough,cloud:true,night:true,
+  atmo:{s:1.09,c:'#6ab7ff',i:1.15},moonTilt:0.09,
+  moons:[{r:0.42,d:3.6,sp:EARTH_ROT/27.3,tex:moonDetailG,lock:true,slow:true,label:true}]},
+ {name:'Mars',r:1.15,d:42,tilt:0.44,inc:0.032,rot:0.115,map:texMars(),atmo:{s:1.06,c:'#d8a07a',i:0.4}},
+ {name:'Jupiter',r:4.6,d:60,tilt:0.054,inc:0.023,rot:0.28,map:texJupiter(),moons:[{r:0.36,d:6.8,sp:0.8,lock:true},{r:0.3,d:8.4,sp:0.55,lock:true}]},
+ {name:'Saturne',r:3.9,d:78,tilt:0.47,inc:0.043,rot:0.26,map:texSaturn(),ring:{i:5.0,o:8.9,tex:saturnRingTex}},
+ {name:'Uranus',r:2.5,d:94,tilt:1.71,inc:0.013,rot:-0.18,map:texUranus(),ring:{i:3.3,o:4.4,tex:uranusRingTex},atmo:{s:1.08,c:'#9fe0e0',i:0.45}},
+ {name:'Neptune',r:2.4,d:108,tilt:0.49,inc:0.031,rot:0.17,map:texNeptune(),atmo:{s:1.08,c:'#5a7fe8',i:0.5}}
+];
+const planets=[];
+let earthMat=null, earthCloudMat=null, moonMeshMat=null;
+for(const pd of PLANETS){
+  const plane=new THREE.Group(); plane.rotation.x=pd.inc; systemGroup.add(plane);
+  const pts=[]; for(let i=0;i<256;i++){const a=i/256*TAU; pts.push(new THREE.Vector3(Math.cos(a)*pd.d,0,Math.sin(a)*pd.d));}
+  plane.add(new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(pts),new THREE.LineBasicMaterial({color:0x7f9dff,transparent:true,opacity:0.15})));
+  const anchor=new THREE.Group(); plane.add(anchor);
+  const tilt=new THREE.Group(); tilt.rotation.z=pd.tilt; anchor.add(tilt);
+  const mesh=new THREE.Mesh(new THREE.SphereGeometry(pd.r,48,32),
+    new THREE.MeshStandardMaterial({map:pd.map,roughnessMap:pd.roughMap||null,roughness:1,metalness:0}));
+  mesh.castShadow=true; mesh.receiveShadow=true; tilt.add(mesh);
+  let cloud=null;
+  if(pd.cloud){ cloud=new THREE.Mesh(new THREE.SphereGeometry(pd.r*1.028,48,32),new THREE.MeshStandardMaterial({map:cloudTexG,transparent:true,depthWrite:false,roughness:1})); tilt.add(cloud); }
+  if(pd.night) tilt.add(makeNightLights(pd.r*1.008,earthMaps.night));
+  if(pd.atmo) tilt.add(makeAtmo(pd.r*pd.atmo.s,pd.atmo.c,pd.atmo.i));
+  if(pd.ring){ const inner=pd.ring.i,outer=pd.ring.o;
+    const geo=new THREE.RingGeometry(inner,outer,180,1);
+    const posA=geo.attributes.position,uvA=geo.attributes.uv;
+    for(let i=0;i<posA.count;i++){ const x=posA.getX(i),y=posA.getY(i); uvA.setXY(i,(Math.hypot(x,y)-inner)/(outer-inner),0.5); }
+    const rm=new THREE.Mesh(geo,new THREE.MeshStandardMaterial({map:pd.ring.tex,transparent:true,side:THREE.DoubleSide,roughness:1,depthWrite:false}));
+    rm.rotation.x=-Math.PI/2; rm.receiveShadow=true; rm.renderOrder=2; tilt.add(rm); }
+  const moons=[];
+  if(pd.moons){ const moonPlane=new THREE.Group(); moonPlane.rotation.x=pd.moonTilt||0; anchor.add(moonPlane);
+    for(const md of pd.moons){
+      const mpts=[]; for(let i=0;i<96;i++){const a=i/96*TAU; mpts.push(new THREE.Vector3(Math.cos(a)*md.d,0,Math.sin(a)*md.d));}
+      moonPlane.add(new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(mpts),new THREE.LineBasicMaterial({color:0xaabbdd,transparent:true,opacity:0.32})));
+      const g2=new THREE.Group(); moonPlane.add(g2);
+      const mm=new THREE.Mesh(new THREE.SphereGeometry(md.r,32,24),new THREE.MeshStandardMaterial({map:md.tex||moonTexG,roughness:1}));
+      mm.castShadow=true; mm.receiveShadow=true; g2.add(mm);
+      if(md.label){ const lb2=makeLabel('Lune'); lb2.scale.set(5,0.625,1); lb2.position.y=md.r*2+0.55; g2.add(lb2); }
+      moons.push({g:g2,mesh:mm,d:md.d,sp:md.sp,a:rnd()*TAU,lock:!!md.lock,slow:!!md.slow}); } }
+  const lb=makeLabel(pd.name); const ls=Math.max(9,pd.r*3.6);
+  lb.scale.set(ls,ls*0.125,1); lb.position.y=pd.r*1.7+2.2; anchor.add(lb);
+  planets.push({name:pd.name,anchor,mesh,cloud,dist:pd.d,angle:rnd()*TAU,speed:0.046*Math.pow(34/pd.d,0.9),rot:pd.rot,moons});
+  if(pd.name==='Terre'){ earthMat=mesh.material; earthCloudMat=cloud.material; }
+}
+const earthEntry=planets.find(p=>p.name==='Terre');
+const earthAnchor=earthEntry.anchor;
+const earthMoon=earthEntry.moons[0];
+moonMeshMat=earthMoon.mesh.material;
+const moonFaceLight=new THREE.PointLight(0xfff6e0,32,14,2);
+earthAnchor.add(moonFaceLight);
+
+/* Helper: simple lit sphere mesh for dwarf planets */
+function meshSphere(r,color){ return new THREE.Mesh(new THREE.SphereGeometry(r,24,18),new THREE.MeshStandardMaterial({color,roughness:0.85,metalness:0})); }
+
+/* Global array for dwarf planet orbital animation */
+const dwarfPlanets=[];
+
+/* Materials whose brightness follows the ☀️ sun slider */
+const sunLitMats=[];
+/* Belt containers that orbit with the system (dust really does revolve) */
+const spinBelts=[];
+function makeSpinBelt(meanR,factor){
+  const g=new THREE.Group(); systemGroup.add(g);
+  spinBelts.push({g,sp:0.046*Math.pow(34/meanR,0.9)*(factor||1)});
+  return g;
+}
+
+/* ☄️ LES CONFINS — visible belts, dwarf planets, comets ---- */
+
+/* Dot textures at different sizes for different belt objects */
+const dotTexSmall=canvasTex(32,32,(g)=>{
+  const gr=g.createRadialGradient(16,16,0,16,16,14);
+  gr.addColorStop(0,'rgba(255,255,255,1)'); gr.addColorStop(0.4,'rgba(200,200,200,0.6)');
+  gr.addColorStop(1,'rgba(140,140,140,0)');
+  g.fillStyle=gr; g.fillRect(0,0,32,32);
+});
+const dotTexMed=canvasTex(64,64,(g)=>{
+  const gr=g.createRadialGradient(32,32,0,32,32,28);
+  gr.addColorStop(0,'rgba(255,255,255,1)'); gr.addColorStop(0.25,'rgba(230,220,200,0.8)');
+  gr.addColorStop(0.6,'rgba(190,180,160,0.35)'); gr.addColorStop(1,'rgba(140,130,120,0)');
+  g.fillStyle=gr; g.fillRect(0,0,64,64);
+});
+const dotTexBright=canvasTex(64,64,(g)=>{
+  const gr=g.createRadialGradient(32,32,0,32,32,30);
+  gr.addColorStop(0,'rgba(255,255,255,1)'); gr.addColorStop(0.15,'rgba(255,250,230,0.9)');
+  gr.addColorStop(0.4,'rgba(220,200,160,0.5)'); gr.addColorStop(1,'rgba(160,140,110,0)');
+  g.fillStyle=gr; g.beginPath(); g.arc(32,32,30,0,TAU); g.fill();
+});
+
+/* ---- SHARED BELT HELPERS ---------------------------------------- */
+/* Dust/rubble point cloud: additive so the belts truly glow, and the
+   material is registered so the sun slider drives its brightness. */
+function beltPoints(N,r0,dr,ySpread,size,color,opacity,tex,addFlat){
+  const pos=new Float32Array(N*3);
+  for(let i=0;i<N;i++){
+    const a=rnd()*TAU;
+    /* r^0.5 bias => denser core of the belt, thinning edges */
+    const u=rnd(), r=r0+dr*(addFlat?u:(0.5-Math.cos(u*Math.PI)*0.5));
+    const yb=(rnd()-0.5)+(rnd()-0.5);
+    pos[i*3]=Math.cos(a)*r; pos[i*3+1]=yb*ySpread*0.5; pos[i*3+2]=Math.sin(a)*r; }
+  const geo=new THREE.BufferGeometry(); geo.setAttribute('position',new THREE.BufferAttribute(pos,3));
+  const mat=new THREE.PointsMaterial({size,sizeAttenuation:true,map:tex||dotTexSmall,color,
+    transparent:true,opacity,depthWrite:false,blending:THREE.AdditiveBlending,fog:false});
+  mat._baseOpacity=opacity; sunLitMats.push(mat);
+  const pts=new THREE.Points(geo,mat); systemGroup.add(pts); return pts;
+}
+/* Faint glowing disc that makes a belt readable from far away */
+function beltGlowDisc(rIn,rOut,color,opacity){
+  const g=new THREE.RingGeometry(rIn,rOut,128,1);
+  const m=new THREE.MeshBasicMaterial({color,transparent:true,opacity,side:THREE.DoubleSide,
+    depthWrite:false,blending:THREE.AdditiveBlending,fog:false});
+  m._baseOpacity=opacity; sunLitMats.push(m);
+  const mesh=new THREE.Mesh(g,m); mesh.rotation.x=-Math.PI/2; systemGroup.add(mesh); return mesh;
+}
+/* Real 3D irregular rocks — lit by the sun, so the slider affects them */
+const rockGeos=[new THREE.IcosahedronGeometry(1.0,0),new THREE.DodecahedronGeometry(0.8,0),
+  new THREE.OctahedronGeometry(0.6,0),new THREE.TetrahedronGeometry(0.9,0),
+  new THREE.IcosahedronGeometry(0.7,1)];
+function rockMatSet(cols,rough){ return cols.map(c=>new THREE.MeshStandardMaterial({color:c,roughness:rough,metalness:0.04})); }
+const rockyMats=rockMatSet([0x8a7358,0x9c8a6a,0x6f5c46,0xa89070,0x5c4a38],0.95);
+function spawnRocks(list,count,r0,dr,eMax,incMax,szMin,szMax,mats){
+  for(let i=0;i<count;i++){
+    const grp=new THREE.Group();
+    const semiA=r0+rnd()*dr;
+    grp.rotation.set((rnd()-0.5)*incMax,rnd()*TAU,rnd()*TAU);
+    systemGroup.add(grp);
+    const geo=rockGeos[Math.floor(rnd()*rockGeos.length)];
+    const mat=mats[Math.floor(rnd()*mats.length)];
+    const rock=new THREE.Mesh(geo,mat);
+    const sz=szMin+rnd()*(szMax-szMin);
+    rock.scale.set(sz*(0.7+rnd()*0.6),sz*(0.6+rnd()*0.5),sz*(0.8+rnd()*0.5));
+    rock.rotation.set(rnd()*TAU,rnd()*TAU,rnd()*TAU);
+    grp.add(rock);
+    list.push({grp,rock,a:semiA,e:rnd()*eMax,M:rnd()*TAU,
+      spin:0.25+rnd()*0.9, speed:0.046*Math.pow(34/semiA,0.9)});
+  }
+}
+
+/* ---- ASTEROID BELT (Mars 42 → Jupiter 60) + inner Earth↔Mars dust ---- */
+const asteroidFlyingRocks=[];
+(function(){
+  /* Belt kept strictly between Mars (42) and Jupiter (60) so no planet
+     is ever buried inside the dust. */
+  const R0=46.0, R1=54.5, DR=R1-R0;
+  const spinIn=makeSpinBelt(46,1), spinMid=makeSpinBelt(51,1), spinOut=makeSpinBelt(56,1);
+  /* --- boundary rings --- */
+  function ring(r,col,op){ const pts=[]; for(let i=0;i<256;i++){const a=i/256*TAU; pts.push(new THREE.Vector3(Math.cos(a)*r,0,Math.sin(a)*r));}
+    const m=new THREE.LineBasicMaterial({color:col,transparent:true,opacity:op}); m._baseOpacity=op; sunLitMats.push(m);
+    systemGroup.add(new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(pts),m)); }
+  ring(R0,0xccaa77,0.42); ring(51,0xbb9966,0.20); ring(R1,0xccaa77,0.34);
+
+  /* --- glowing dust discs: the belt reads as a real luminous band --- */
+  spinMid.add(beltGlowDisc(R0,R1,0x8a6a42,0.05));
+  spinMid.add(beltGlowDisc(R0+2,R1-2,0xa07a4a,0.04));
+
+  /* --- layered rubble: bright specks → fine glowing dust --- */
+  /* big bright chunks */
+  const Nbig=1400,posBig=new Float32Array(Nbig*3),colBig=new Float32Array(Nbig*3);
+  for(let i=0;i<Nbig;i++){const a=rnd()*TAU,r=R0+rnd()*DR;
+    posBig[i*3]=Math.cos(a)*r; posBig[i*3+1]=((rnd()-0.5)+(rnd()-0.5))*1.3; posBig[i*3+2]=Math.sin(a)*r;
+    const warm=0.75+rnd()*0.45; colBig[i*3]=warm; colBig[i*3+1]=warm*(0.86+rnd()*0.1); colBig[i*3+2]=warm*(0.68+rnd()*0.1);}
+  const geoBig=new THREE.BufferGeometry();
+  geoBig.setAttribute('position',new THREE.BufferAttribute(posBig,3));
+  geoBig.setAttribute('color',new THREE.BufferAttribute(colBig,3));
+  const matBig=new THREE.PointsMaterial({size:0.85,sizeAttenuation:true,map:dotTexBright,transparent:true,
+    opacity:0.95,depthWrite:false,vertexColors:true,blending:THREE.AdditiveBlending,fog:false});
+  matBig._baseOpacity=0.95; sunLitMats.push(matBig);
+  spinMid.add(new THREE.Points(geoBig,matBig));
+
+  spinIn .add(beltPoints(9000, R0,DR, 2.6, 0.55, 0xe8d2ac, 0.80, dotTexMed));  /* medium rubble */
+  spinMid.add(beltPoints(16000,R0,DR, 3.2, 0.40, 0xd6bd94, 0.70));             /* small rocks   */
+  spinOut.add(beltPoints(26000,R0,DR, 4.0, 0.30, 0xc8a97e, 0.55));             /* fine gravel   */
+  spinMid.add(beltPoints(30000,R0,DR, 5.0, 0.22, 0xb89a74, 0.42, null, true)); /* glowing dust  */
+
+  /* Kirkwood-like density clumps so the belt is not a uniform smear */
+  for(let k=0;k<5;k++){ spinIn.add(beltPoints(2600, R0+0.6+k*2.3, 1.6, 2.0, 0.34, 0xf0d8ae, 0.55)); }
+
+  /* --- 3D flying rocks through the main belt --- */
+  spawnRocks(asteroidFlyingRocks,260, R0,DR, 0.14, 0.24, 0.22, 0.75, rockyMats);
+  /* a few large named-scale boulders */
+  spawnRocks(asteroidFlyingRocks, 34, R0+1,DR-2, 0.10, 0.16, 0.85, 1.6, rockyMats);
+
+  const lb=makeLabel("Ceinture d'astéroïdes"); lb.scale.set(22,2.75,1); lb.position.set(50,8,0); systemGroup.add(lb);
+
+  /* Ceres */
+  const ceres=meshSphere(0.75,0xd8c9a2); ceres.position.set(50,0.3,0); systemGroup.add(ceres);
+  const cLabel=makeLabel('Cérès'); cLabel.scale.set(6,0.75,1); cLabel.position.y=1.8; ceres.add(cLabel);
+  dwarfPlanets.push({mesh:ceres,a:rnd()*TAU,d:50,speed:0.046*Math.pow(34/50,0.9),inc:0.0});
+  /* Vesta & Pallas — the other big belt bodies */
+  const vesta=meshSphere(0.5,0xc9b894); systemGroup.add(vesta);
+  const vLabel=makeLabel('Vesta'); vLabel.scale.set(6,0.75,1); vLabel.position.y=1.5; vesta.add(vLabel);
+  dwarfPlanets.push({mesh:vesta,a:rnd()*TAU,d:47.5,speed:0.046*Math.pow(34/47.5,0.9),inc:0.0});
+  const pallas=meshSphere(0.46,0xb5ab9a); systemGroup.add(pallas);
+  const pLabel=makeLabel('Pallas'); pLabel.scale.set(6,0.75,1); pLabel.position.y=1.4; pallas.add(pLabel);
+  dwarfPlanets.push({mesh:pallas,a:rnd()*TAU,d:53,speed:0.046*Math.pow(34/53,0.9),inc:0.0});
+})();
+
+/* ---- INNER DUST / METEOROID BELT between Earth (34) and Mars (42) ---- */
+const innerFlyingRocks=[];
+(function(){
+  const R0=36.6, R1=39.6, DR=R1-R0;
+  const spinI=makeSpinBelt(38,1);
+  function ring(r,col,op){ const pts=[]; for(let i=0;i<256;i++){const a=i/256*TAU; pts.push(new THREE.Vector3(Math.cos(a)*r,0,Math.sin(a)*r));}
+    const m=new THREE.LineBasicMaterial({color:col,transparent:true,opacity:op}); m._baseOpacity=op; sunLitMats.push(m);
+    systemGroup.add(new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(pts),m)); }
+  ring(R0,0xddaa88,0.26); ring(R1,0xddaa88,0.24);
+
+  /* zodiacal-light style glowing band */
+  spinI.add(beltGlowDisc(R0,R1,0xa06a44,0.05));
+
+  /* bright meteoroids */
+  const Nm=1100,posM=new Float32Array(Nm*3),colM=new Float32Array(Nm*3);
+  for(let i=0;i<Nm;i++){const a=rnd()*TAU,r=R0+rnd()*DR;
+    posM[i*3]=Math.cos(a)*r; posM[i*3+1]=((rnd()-0.5)+(rnd()-0.5))*0.8; posM[i*3+2]=Math.sin(a)*r;
+    const warm=0.8+rnd()*0.4; colM[i*3]=warm; colM[i*3+1]=warm*0.82; colM[i*3+2]=warm*0.62;}
+  const gM=new THREE.BufferGeometry();
+  gM.setAttribute('position',new THREE.BufferAttribute(posM,3));
+  gM.setAttribute('color',new THREE.BufferAttribute(colM,3));
+  const mM=new THREE.PointsMaterial({size:0.62,sizeAttenuation:true,map:dotTexBright,transparent:true,
+    opacity:0.9,depthWrite:false,vertexColors:true,blending:THREE.AdditiveBlending,fog:false});
+  mM._baseOpacity=0.9; sunLitMats.push(mM);
+  spinI.add(new THREE.Points(gM,mM));
+
+  spinI.add(beltPoints(7000, R0,DR, 1.5, 0.42, 0xe6c9a4, 0.70, dotTexMed));
+  spinI.add(beltPoints(12000,R0,DR, 2.0, 0.30, 0xd8b892, 0.55));
+  spinI.add(beltPoints(16000,R0,DR, 2.6, 0.22, 0xc0a078, 0.40, null, true));
+
+  /* real tumbling meteoroids */
+  spawnRocks(innerFlyingRocks,110, R0,DR, 0.10, 0.16, 0.15, 0.45, rockyMats);
+
+  const lb=makeLabel('Ceinture de météoroïdes');
+  lb.scale.set(18,2.25,1); lb.position.set(-38,5.5,0); systemGroup.add(lb);
+})();
+
+/* ---- KUIPER BELT: dense, bright, rock-filled belt (116 → 160) ---- */
+const kuiperFlyingRocks=[];
+(function(){
+  const spinKin=makeSpinBelt(120,1), spinKmid=makeSpinBelt(135,1), spinKout=makeSpinBelt(152,1);
+  function ring(r,col,op){ const pts=[]; for(let i=0;i<256;i++){const a=i/256*TAU; pts.push(new THREE.Vector3(Math.cos(a)*r,0,Math.sin(a)*r));}
+    const m=new THREE.LineBasicMaterial({color:col,transparent:true,opacity:op}); m._baseOpacity=op; sunLitMats.push(m);
+    systemGroup.add(new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(pts),m)); }
+  ring(114,0xaaccee,0.42); ring(135,0x99bbdd,0.22); ring(158,0xaaccee,0.34);
+
+  /* glowing icy discs — the belt is visible as a luminous halo */
+  spinKmid.add(beltGlowDisc(114,158,0x3f5f80,0.05));
+  spinKmid.add(beltGlowDisc(124,150,0x50708f,0.04));
+
+  /* big bright icy bodies */
+  const Nbig=2200,posBig=new Float32Array(Nbig*3),colBig=new Float32Array(Nbig*3);
+  for(let i=0;i<Nbig;i++){const a=rnd()*TAU,r=114+rnd()*45;
+    posBig[i*3]=Math.cos(a)*r; posBig[i*3+1]=((rnd()-0.5)+(rnd()-0.5))*3.2; posBig[i*3+2]=Math.sin(a)*r;
+    const icy=0.8+rnd()*0.4; colBig[i*3]=icy*0.9; colBig[i*3+1]=icy*0.95; colBig[i*3+2]=icy*1.05;}
+  const geoBig=new THREE.BufferGeometry();
+  geoBig.setAttribute('position',new THREE.BufferAttribute(posBig,3));
+  geoBig.setAttribute('color',new THREE.BufferAttribute(colBig,3));
+  const matBig=new THREE.PointsMaterial({size:0.8,sizeAttenuation:true,map:dotTexBright,transparent:true,
+    opacity:0.95,depthWrite:false,vertexColors:true,blending:THREE.AdditiveBlending,fog:false});
+  matBig._baseOpacity=0.95; sunLitMats.push(matBig);
+  spinKmid.add(new THREE.Points(geoBig,matBig));
+
+  spinKin .add(beltPoints(11000,114,45, 7.0, 0.55, 0xdce6f2, 0.78, dotTexMed));  /* medium icy rocks */
+  spinKmid.add(beltPoints(20000,114,45, 9.0, 0.40, 0xc4d2e2, 0.62));             /* small debris     */
+  spinKout.add(beltPoints(30000,113,46,11.0, 0.30, 0xaebfd2, 0.48));             /* fine ice grains  */
+  spinKmid.add(beltPoints(34000,112,48,13.0, 0.22, 0x9fb0c4, 0.38, null, true)); /* glowing ice dust */
+
+  /* resonant clumps (plutinos / twotinos) */
+  spinKin .add(beltPoints(4200,129,3.0,5.0,0.38,0xe4eefb,0.6));
+  spinKout.add(beltPoints(3600,152,3.0,6.0,0.38,0xd8e6f8,0.5));
+  /* scattered-disc halo spilling above and below the plane */
+  spinKout.add(beltPoints(9000,116,60,26.0,0.26,0x93a8c0,0.30,null,true));
+
+  /* ---- FLYING ROCKS: 3D asteroids on Keplerian orbits through the belt ---- */
+  const icyMats=rockMatSet([0x6a7480,0x7d8794,0x58616e,0x8a94a2,0x4a525d],0.93);
+  spawnRocks(kuiperFlyingRocks,340, 114,45, 0.18, 0.24, 0.22, 0.8, icyMats);
+  spawnRocks(kuiperFlyingRocks, 40, 116,42, 0.14, 0.18, 0.9, 1.9, icyMats);
+
+  const lb=makeLabel('Ceinture de Kuiper'); lb.scale.set(24,3,1); lb.position.set(140,5,0); systemGroup.add(lb);
+
+  /* Pluto + Charon — much bigger, brighter */
+  const plutoOrb=new THREE.Group(); plutoOrb.rotation.x=0.3; systemGroup.add(plutoOrb);
+  const plutoOrbLine=[]; for(let i=0;i<256;i++){const a=i/256*TAU; plutoOrbLine.push(new THREE.Vector3(Math.cos(a)*130,0,Math.sin(a)*130));}
+  plutoOrb.add(new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(plutoOrbLine),new THREE.LineBasicMaterial({color:0x9988aa,transparent:true,opacity:0.3})));
+  const plutoAnchor=new THREE.Group(); plutoOrb.add(plutoAnchor);
+  const plutoMesh=meshSphere(0.8,0xe8c8a8); plutoAnchor.add(plutoMesh);
+  const heart=radialSprite([[0,'rgba(255,240,220,0.7)'],[0.5,'rgba(240,220,190,0.3)'],[1,'rgba(220,200,170,0)']],0.55);
+  heart.scale.set(1.0,0.8,1); heart.position.set(0.25,0.35,0.55); plutoAnchor.add(heart);
+  const plutoAtmo=radialSprite([[0,'rgba(200,220,255,0.25)'],[0.6,'rgba(180,200,240,0.08)'],[1,'rgba(160,180,220,0)']],0.2);
+  plutoAtmo.scale.set(2.2,2.2,1); plutoAnchor.add(plutoAtmo);
+  const plutoLabel=makeLabel('Pluton'); plutoLabel.scale.set(10,1.25,1); plutoLabel.position.y=2.0; plutoAnchor.add(plutoLabel);
+  const charon=meshSphere(0.42,0xa09888); charon.position.x=3.2; plutoAnchor.add(charon);
+  const charonLabel=makeLabel('Charon'); charonLabel.scale.set(7,0.875,1); charonLabel.position.y=1.2; charon.add(charonLabel);
+  dwarfPlanets.push({mesh:plutoAnchor,orbGroup:plutoOrb,a:rnd()*TAU,d:130,speed:0.046*Math.pow(34/130,0.9),inc:0.3});
+
+  /* Makemake */
+  const mkOrb=new THREE.Group(); mkOrb.rotation.x=-0.15; systemGroup.add(mkOrb);
+  const mkAnchor=new THREE.Group(); mkOrb.add(mkAnchor);
+  const mkMesh=meshSphere(0.5,0xd8a888); mkAnchor.add(mkMesh);
+  const mkLabel=makeLabel('Makémaké'); mkLabel.scale.set(8,1,1); mkLabel.position.y=1.3; mkAnchor.add(mkLabel);
+  dwarfPlanets.push({mesh:mkAnchor,orbGroup:mkOrb,a:rnd()*TAU,d:142,speed:0.046*Math.pow(34/142,0.9),inc:0.15});
+
+  /* Haumea */
+  const hmOrb=new THREE.Group(); hmOrb.rotation.x=0.25; systemGroup.add(hmOrb);
+  const hmAnchor=new THREE.Group(); hmOrb.add(hmAnchor);
+  const hmMesh=new THREE.Mesh(new THREE.SphereGeometry(0.42,16,12),new THREE.MeshStandardMaterial({color:0xd8d0c0,roughness:1}));
+  hmMesh.scale.set(1.5,0.8,0.8); hmAnchor.add(hmMesh);
+  const hmLabel=makeLabel('Hauméa'); hmLabel.scale.set(8,1,1); hmLabel.position.y=1.0; hmAnchor.add(hmLabel);
+  dwarfPlanets.push({mesh:hmAnchor,orbGroup:hmOrb,a:rnd()*TAU,d:138,speed:0.046*Math.pow(34/138,0.9),inc:0.28});
+})();
+
+/* ---- HÉLIOPAUSE: sparse 3D shell of icy particles + interstellar dust ---- */
+(function(){
+  /* Main shell — scattered icy bodies forming a visible boundary */
+  const N1=2000,pos1=new Float32Array(N1*3);
+  for(let i=0;i<N1;i++){const r=158+rnd()*16;
+    const th=rnd()*TAU, ph=Math.acos(2*rnd()-1);
+    pos1[i*3]=r*Math.sin(ph)*Math.cos(th); pos1[i*3+1]=r*Math.cos(ph); pos1[i*3+2]=r*Math.sin(ph)*Math.sin(th); }
+  const g1=new THREE.BufferGeometry(); g1.setAttribute('position',new THREE.BufferAttribute(pos1,3));
+  systemGroup.add(new THREE.Points(g1,new THREE.PointsMaterial({size:0.35,sizeAttenuation:true,map:dotTexSmall,color:0xb8c0cc,transparent:true,opacity:0.45,depthWrite:false})));
+
+  /* Brighter scattered dust — thicker in equatorial plane */
+  const N2=600,pos2=new Float32Array(N2*3);
+  for(let i=0;i<N2;i++){const r=155+rnd()*22;
+    const th=rnd()*TAU, ph=Math.acos(2*rnd()-1);
+    pos2[i*3]=r*Math.sin(ph)*Math.cos(th); pos2[i*3+1]=r*Math.cos(ph)*0.7; pos2[i*3+2]=r*Math.sin(ph)*Math.sin(th); }
+  const g2=new THREE.BufferGeometry(); g2.setAttribute('position',new THREE.BufferAttribute(pos2,3));
+  systemGroup.add(new THREE.Points(g2,new THREE.PointsMaterial({size:0.45,sizeAttenuation:true,map:dotTexSmall,color:0xc8d0dc,transparent:true,opacity:0.45,depthWrite:false})));
+
+  const helioLabel=makeLabel('Héliopause'); helioLabel.scale.set(26,3.25,1); helioLabel.position.y=185; systemGroup.add(helioLabel);
+})();
+
+/* ---- OORT CLOUD: animated comets + scattered icy bodies ---- */
+const oortComets=[];
+(function(){
+  /* Static icy/rocky scattered bodies */
+  const N1=5000,pos1=new Float32Array(N1*3);
+  for(let i=0;i<N1;i++){const r=260+rnd()*380;
+    const th=rnd()*TAU, ph=Math.acos(2*rnd()-1);
+    pos1[i*3]=r*Math.sin(ph)*Math.cos(th); pos1[i*3+1]=r*Math.cos(ph)*0.92; pos1[i*3+2]=r*Math.sin(ph)*Math.sin(th); }
+  const g1=new THREE.BufferGeometry(); g1.setAttribute('position',new THREE.BufferAttribute(pos1,3));
+  systemGroup.add(new THREE.Points(g1,new THREE.PointsMaterial({size:0.45,sizeAttenuation:true,map:dotTexSmall,color:0xd8d0c8,transparent:true,opacity:0.4,depthWrite:false})));
+
+  const N2=2500,pos2=new Float32Array(N2*3);
+  for(let i=0;i<N2;i++){const r=180+rnd()*80;
+    const th=rnd()*TAU, ph=Math.acos(2*rnd()-1);
+    pos2[i*3]=r*Math.sin(ph)*Math.cos(th); pos2[i*3+1]=r*Math.cos(ph)*0.85; pos2[i*3+2]=r*Math.sin(ph)*Math.sin(th); }
+  const g2=new THREE.BufferGeometry(); g2.setAttribute('position',new THREE.BufferAttribute(pos2,3));
+  systemGroup.add(new THREE.Points(g2,new THREE.PointsMaterial({size:0.5,sizeAttenuation:true,map:dotTexSmall,color:0xe0d8d0,transparent:true,opacity:0.45,depthWrite:false})));
+
+  /* Mid-range scattered objects between Kuiper and Oort */
+  const N3=1800,pos3=new Float32Array(N3*3);
+  for(let i=0;i<N3;i++){const r=155+rnd()*50;
+    const th=rnd()*TAU, ph=Math.acos(2*rnd()-1);
+    pos3[i*3]=r*Math.sin(ph)*Math.cos(th); pos3[i*3+1]=r*Math.cos(ph)*0.88; pos3[i*3+2]=r*Math.sin(ph)*Math.sin(th); }
+  const g3=new THREE.BufferGeometry(); g3.setAttribute('position',new THREE.BufferAttribute(pos3,3));
+  systemGroup.add(new THREE.Points(g3,new THREE.PointsMaterial({size:0.4,sizeAttenuation:true,map:dotTexSmall,color:0xc0b8b0,transparent:true,opacity:0.4,depthWrite:false})));
+
+  /* (Removed: the swarm of 50 free-floating glowing comets that drifted
+     through the solar system — only the real named comets remain.) */
+
+  const lb=makeLabel("Nuage d'Oort"); lb.scale.set(30,3.75,1); lb.position.y=330; systemGroup.add(lb);
+
+  /* Eris */
+  const erisOrb=new THREE.Group(); erisOrb.rotation.x=0.44; systemGroup.add(erisOrb);
+  const erisAnchor=new THREE.Group(); erisOrb.add(erisAnchor);
+  const erisMesh=meshSphere(0.38,0xe0d8d0); erisAnchor.add(erisMesh);
+  const erisLabel=makeLabel('Éris'); erisLabel.scale.set(6,0.75,1); erisLabel.position.y=1.0; erisAnchor.add(erisLabel);
+  dwarfPlanets.push({mesh:erisAnchor,orbGroup:erisOrb,a:rnd()*TAU,d:250,speed:0.046*Math.pow(34/250,0.9),inc:0.44});
+  const erisOrbLine=[]; for(let i=0;i<256;i++){const a=i/256*TAU; erisOrbLine.push(new THREE.Vector3(Math.cos(a)*250,0,Math.sin(a)*250));}
+  erisOrb.add(new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(erisOrbLine),new THREE.LineBasicMaterial({color:0x888899,transparent:true,opacity:0.12})));
+})();
+
+/* ---- COMETS ON KEPLERIAN ORBITS (2 only, slow) ---- */
+const solarComets=[];
+(function(){
+  /* Halley — iconic long-period comet */
+  function addComet(name,a,e,inc,raan,argPeri,headScale,tailLen,tailCol){
+    const grp=new THREE.Group(); systemGroup.add(grp);
+    const head=radialSprite([[0,'rgba(255,255,255,1)'],[0.1,'rgba(230,245,255,0.9)'],[0.25,'rgba(180,225,255,0.6)'],[0.5,'rgba(140,200,255,0.25)'],[1,'rgba(100,170,255,0)']],0.85);
+    head.scale.set(headScale*1.5,headScale*1.5,1); grp.add(head);
+    const core=radialSprite([[0,'rgba(255,255,255,1)'],[0.3,'rgba(220,240,255,0.5)'],[1,'rgba(180,220,255,0)']],0.8);
+    core.scale.set(headScale*0.6,headScale*0.6,1); grp.add(core);
+    /* Ion tail */
+    const Nc=250,pc=new Float32Array(Nc*3);
+    for(let i=0;i<Nc;i++){const t=Math.pow(rnd(),0.4); pc[i*3]=t*tailLen;
+      pc[i*3+1]=(rnd()-0.5)*0.15*t*t*tailLen; pc[i*3+2]=(rnd()-0.5)*0.15*t*t*tailLen; }
+    const tGeo=new THREE.BufferGeometry(); tGeo.setAttribute('position',new THREE.BufferAttribute(pc,3));
+    const tailObj=new THREE.Points(tGeo,new THREE.PointsMaterial({size:1.6,sizeAttenuation:true,map:dotTexBright,color:tailCol,transparent:true,opacity:0.75,depthWrite:false,blending:THREE.AdditiveBlending}));
+    grp.add(tailObj);
+    /* Dust tail */
+    const Nd=120,pd=new Float32Array(Nd*3);
+    for(let i=0;i<Nd;i++){const t=Math.pow(rnd(),0.45); pd[i*3]=t*tailLen*0.65;
+      pd[i*3+1]=(rnd()-0.5)*0.4*t*tailLen*0.65; pd[i*3+2]=(rnd()-0.5)*0.4*t*tailLen*0.65; }
+    const dGeo=new THREE.BufferGeometry(); dGeo.setAttribute('position',new THREE.BufferAttribute(pd,3));
+    const dustObj=new THREE.Points(dGeo,new THREE.PointsMaterial({size:2.0,sizeAttenuation:true,map:dotTexBright,color:0xeef4ff,transparent:true,opacity:0.6,depthWrite:false,blending:THREE.AdditiveBlending}));
+    grp.add(dustObj);
+    const lb=makeLabel(name); lb.scale.set(10,1.25,1); lb.position.y=headScale+2; grp.add(lb);
+    solarComets.push({grp,a,e,M:rnd()*TAU,speed:0.012+Math.random()*0.008,inc,raan,argPeri,name,tail:tailObj,dust:dustObj,head,core});
+  }
+  /* Only 2 comets — slow elegant orbits */
+  addComet('Halley',     150, 0.97, 0.35, 1.2, 4.8, 4.0, 30, 0x66aaff);
+  addComet('Hale-Bopp',  250, 0.98, 0.28, 2.5, 1.5, 5.5, 45, 0x88bbff);
+})();
+
+/* ---- SCATTERED ASTEROIDS on inclined orbits ---- */
+(function(){ const N=500,pos=new Float32Array(N*3);
+  for(let i=0;i<N;i++){
+    const r=55+rnd()*120;
+    const th=rnd()*TAU;
+    const inc=(rnd()-0.5)*1.2;
+    pos[i*3]=Math.cos(th)*r;
+    pos[i*3+1]=Math.sin(inc)*r*0.5;
+    pos[i*3+2]=Math.sin(th)*r; }
+  const geo=new THREE.BufferGeometry(); geo.setAttribute('position',new THREE.BufferAttribute(pos,3));
+  systemGroup.add(new THREE.Points(geo,new THREE.PointsMaterial({size:0.4,sizeAttenuation:true,map:dotTexSmall,color:0xc8b8a0,transparent:true,opacity:0.5,depthWrite:false})));
+})();
+function keplerE(M,e){
+  /* Newton-Raphson with more iterations for high-eccentricity orbits */
+  if(e>=1){ /* Hyperbolic orbit */
+    let H=M<0?-Math.pow(-6*M,1/3):Math.pow(6*M,1/3);
+    for(let k=0;k<12;k++) H-=(e*Math.sinh(H)-H-M)/(e*Math.cosh(H)-1);
+    return H;
+  }
+  let E=M;
+  for(let k=0;k<12;k++) E-=(E-e*Math.sin(E)-M)/(1-e*Math.cos(E));
+  return E;
+}
+const COMET_A=300, COMET_E=0.92, COMET_INC=0.45, X_AXIS=new THREE.Vector3(1,0,0);
+const comet=(function(){
+  const grp=new THREE.Group(); systemGroup.add(grp);
+  /* Nucleus — bright white core with large glow */
+  const head=radialSprite([[0,'rgba(255,255,255,1)'],[0.08,'rgba(255,255,250,0.98)'],[0.2,'rgba(235,250,255,0.85)'],[0.4,'rgba(180,220,255,0.5)'],[0.7,'rgba(120,190,255,0.15)'],[1,'rgba(80,150,255,0)']]);
+  head.scale.set(10,10,1); grp.add(head);
+  /* Extra bright core point */
+  const core=radialSprite([[0,'rgba(255,255,255,1)'],[0.3,'rgba(220,240,255,0.6)'],[1,'rgba(180,220,255,0)']],0.9);
+  core.scale.set(4,4,1); grp.add(core);
+  /* Coma — wide gas envelope, very visible */
+  const coma=radialSprite([[0,'rgba(180,220,255,0.5)'],[0.2,'rgba(150,210,255,0.25)'],[0.5,'rgba(120,190,255,0.08)'],[1,'rgba(80,160,255,0)']],0.6);
+  coma.scale.set(18,18,1); grp.add(coma);
+  /* Ion tail — long narrow blue streamer, VERY long and bright */
+  const Nion=500,pion=new Float32Array(Nion*3);
+  for(let i=0;i<Nion;i++){const t=Math.pow(rnd(),0.35);
+    pion[i*3]=t*65;
+    pion[i*3+1]=(rnd()-0.5)*0.08*t*t*65;
+    pion[i*3+2]=(rnd()-0.5)*0.08*t*t*65; }
+  const ionGeo=new THREE.BufferGeometry(); ionGeo.setAttribute('position',new THREE.BufferAttribute(pion,3));
+  const ionTail=new THREE.Points(ionGeo,new THREE.PointsMaterial({size:2.2,sizeAttenuation:true,map:dotTexBright,color:0x66aaff,transparent:true,opacity:0.85,depthWrite:false,blending:THREE.AdditiveBlending}));
+  grp.add(ionTail);
+  /* Dust tail — wide yellowish-white fan, bright */
+  const Ndust=350,pdust=new Float32Array(Ndust*3);
+  for(let i=0;i<Ndust;i++){const t=Math.pow(rnd(),0.45);
+    pdust[i*3]=t*45;
+    pdust[i*3+1]=(rnd()-0.5)*0.4*t*45;
+    pdust[i*3+2]=(rnd()-0.5)*0.4*t*45; }
+  const dustGeo=new THREE.BufferGeometry(); dustGeo.setAttribute('position',new THREE.BufferAttribute(pdust,3));
+  const dustTail=new THREE.Points(dustGeo,new THREE.PointsMaterial({size:3.0,sizeAttenuation:true,map:dotTexBright,color:0xeef4ff,transparent:true,opacity:0.7,depthWrite:false,blending:THREE.AdditiveBlending}));
+  grp.add(dustTail);
+  const lb=makeLabel('Comète'); lb.scale.set(10,1.25,1); lb.position.y=8; grp.add(lb);
+  return {grp,head,core,coma,ionTail,dustTail,M:rnd()*TAU};
+})();
+
+/* ---- Textures réelles (CDN) avec repli procédural ---- */
+const PTEX='https://cdn.jsdelivr.net/gh/mrdoob/three.js@r160/examples/textures/planets/';
+const texLoader=new THREE.TextureLoader(); texLoader.setCrossOrigin('anonymous');
+function tryLoad(url,cb){ texLoader.load(url,t=>{ t.colorSpace=THREE.SRGBColorSpace; t.anisotropy=maxAniso; try{cb(t);}catch(e){} },undefined,()=>{}); }
+function invertRoughness(tex){ const img=tex.image; const c=document.createElement('canvas'); c.width=img.width; c.height=img.height;
+  const g=c.getContext('2d'); g.drawImage(img,0,0);
+  const d=g.getImageData(0,0,c.width,c.height);
+  for(let i=0;i<d.data.length;i+=4){ const v=255-d.data[i]; d.data[i]=v; d.data[i+1]=v; d.data[i+2]=v; }
+  g.putImageData(d,0,0);
+  const t=new THREE.CanvasTexture(c); t.anisotropy=maxAniso; return t; }
+tryLoad(PTEX+'earth_atmos_2048.jpg',t=>{ if(earthMat){ earthMat.map=t; earthMat.needsUpdate=true; } });
+tryLoad(PTEX+'earth_normal_2048.jpg',t=>{ if(earthMat){ earthMat.normalMap=t; earthMat.normalScale=new THREE.Vector2(0.85,0.85); earthMat.needsUpdate=true; } });
+tryLoad(PTEX+'earth_specular_2048.jpg',t=>{ if(earthMat){ earthMat.roughnessMap=invertRoughness(t); earthMat.needsUpdate=true; } });
+tryLoad(PTEX+'earth_lights_2048.png',t=>{ if(nightLayerMat){ nightLayerMat.uniforms.uNight.value=t; } });
+tryLoad(PTEX+'earth_clouds_1024.png',t=>{ if(earthCloudMat){ earthCloudMat.map=t; earthCloudMat.needsUpdate=true; } });
+tryLoad(PTEX+'moon_1024.jpg',t=>{ if(moonMeshMat){ moonMeshMat.map=t; moonMeshMat.bumpMap=t; moonMeshMat.bumpScale=0.04; moonMeshMat.needsUpdate=true; } });
+
+/* =========================================================
+   CATALOGUES (pour le fisheye intégré)
+   ========================================================= */
+const STARS=[
+ ['Sirius',6.752,-16.72,-1.46,0.01],['Canopus',6.399,-52.70,-0.74,0.16],['Rigil Kent',14.660,-60.83,-0.27,0.71],
+ ['Arcturus',14.261,19.18,-0.05,1.23],['Véga',18.616,38.78,0.03,0.00],['Capella',5.278,45.99,0.08,0.80],
+ ['Rigel',5.242,-8.20,0.13,-0.03],['Procyon',7.655,5.22,0.34,0.42],['Achernar',1.629,-57.24,0.46,-0.16],
+ ['Bételgeuse',5.919,7.41,0.50,1.85],['Hadar',14.064,-60.37,0.61,-0.23],['Altaïr',19.846,8.87,0.76,0.22],
+ ['Acrux',12.443,-63.10,0.76,-0.24],['Aldébaran',4.599,16.51,0.86,1.54],['Antarès',16.490,-26.43,0.96,1.83],
+ ['Spica',13.420,-11.16,0.97,-0.23],['Pollux',7.755,28.03,1.14,1.00],['Fomalhaut',22.961,-29.62,1.16,0.09],
+ ['Deneb',20.690,45.28,1.25,0.09],['Mimosa',12.795,-59.69,1.25,-0.24],['Régulus',10.139,11.97,1.35,-0.11],
+ ['Adhara',6.977,-28.97,1.50,-0.21],['Castor',7.577,31.89,1.58,0.02],['Shaula',17.560,-37.10,1.62,-0.22],
+ ['Gacrux',12.519,-57.11,1.63,1.59],['Bellatrix',5.418,6.35,1.64,-0.22],['Elnath',5.438,28.61,1.65,-0.13],
+ ['Miaplacidus',9.220,-69.72,1.67,0.03],['Alnilam',5.604,-1.20,1.69,-0.21],['Alnitak',5.679,-1.94,1.77,-0.21],
+ ['Alioth',12.900,55.96,1.77,0.00],['Dubhe',11.062,61.75,1.79,1.07],['Mirfak',3.405,49.86,1.79,0.48],
+ ['Wezen',7.140,-26.40,1.83,0.56],['Sargas',17.622,-43.00,1.86,0.14],['Kaus Australis',18.403,-34.38,1.85,-0.11],
+ ['Avior',8.375,-59.51,1.86,1.52],['Alkaid',13.792,49.31,1.86,-0.10],['Menkalinan',5.992,44.95,1.90,0.03],
+ ['Atria',16.811,-69.03,1.91,1.50],['Alhena',6.629,16.40,1.92,0.05],['Peacock',20.427,-56.74,1.94,-0.21],
+ ['Alsephina',8.751,-54.71,1.96,0.03],['Mirzam',6.378,-17.96,1.98,-0.24],['Alphard',9.460,-8.66,1.98,1.40],
+ ['Polaris',2.530,89.26,1.98,0.60],['Hamal',2.120,23.46,2.00,1.15],['Diphda',0.726,-17.99,2.02,1.02],
+ ['Mizar',13.399,54.93,2.04,0.00],['Nunki',18.921,-26.30,2.05,-0.11],['Mirach',1.162,35.62,2.05,1.58],
+ ['Alphératz',0.140,29.09,2.06,-0.02],['Rasalhague',17.582,12.56,2.07,0.03],['Kochab',14.845,74.16,2.08,1.21],
+ ['Saiph',5.796,-9.67,2.09,-0.24],['Denebola',11.818,14.57,2.11,0.03],['Algol',3.136,40.96,2.12,-0.02],
+ ['Merak',11.031,56.38,2.37,0.00],['Phecda',11.897,53.69,2.44,0.00],['Megrez',12.252,57.03,3.31,0.03],
+ ['Caph',0.153,59.15,2.27,0.30],['Schedar',0.675,56.54,2.24,1.00],['Navi',0.945,60.72,2.47,-0.20],
+ ['Ruchbah',1.430,60.24,2.68,0.10],['Segin',1.907,63.67,3.38,-0.15],['Mintaka',5.533,-0.30,2.25,-0.20],
+ ['Imai',12.252,-58.75,2.79,-0.10],['Acrab',16.091,-19.81,2.62,-0.20],['Dschubba',16.005,-22.62,2.29,-0.10],
+ ['Pi Sco',15.981,-26.11,2.89,-0.20],['Sigma Sco',16.353,-25.59,2.88,-0.20],['Tau Sco',16.598,-28.21,2.82,-0.20],
+ ['Eps Sco',16.841,-34.29,2.31,1.50],['Kap Sco',17.708,-39.03,2.39,-0.10],['Up Sco',17.511,-37.29,2.70,-0.20],
+ ['Sheliak',18.835,33.36,3.52,0.00],['Sulafat',18.982,32.69,3.24,-0.10],['Delta Lyr',18.913,36.90,4.22,0.00],
+ ['Sadr',20.371,40.26,2.23,0.90],['Albireo',19.512,27.96,3.18,1.20],['Gienah Cyg',20.770,33.97,2.46,1.00],
+ ['Delta Cyg',19.749,45.13,2.87,-0.10],['Aludra',7.401,-29.30,2.45,-0.20],['Alcyone',3.791,24.11,2.87,-0.10],
+ ['Cursa',5.438,-5.91,2.64,-0.15],['Zubeneschamali',15.282,-9.38,2.61,-0.10],['Sabik',17.172,-15.72,2.43,0.06],
+ ['Rasalhague',17.582,12.56,2.07,0.03],['Cebalrai',26.098,4.56,2.65,1.15],['Etamin',17.944,51.489,2.23,0.95],
+ ['Kornephoros',16.300,21.49,2.77,0.95],['Yed Prior',16.239,-3.69,2.75,1.17],['Australis',17.395,-49.07,2.25,0.88],
+ ['Minkar',3.346,-9.56,2.98,1.20],['Rana',4.450,-9.76,2.88,0.95],['Zibal',8.375,-59.51,3.18,-0.10],
+ ['Acubens',2.346,23.44,4.25,0.05],['Diphda',0.726,-17.99,2.02,1.02],['Torcular',1.910,8.93,3.24,1.20],
+ ['Menkar',3.037,4.09,2.53,0.95],['Biham',0.240,20.57,3.68,0.00],['Sadalmelik',22.101,-0.32,2.96,0.00],
+ ['Albali',20.789,-9.50,3.77,0.00],['Saiph',5.796,-9.67,2.09,-0.24],['Mebsuta',6.731,25.13,2.98,0.00],
+ ['Propus',6.248,22.51,3.28,0.95],['Tejat',6.383,9.93,2.88,1.55],['Murzim',6.378,-17.96,1.98,-0.24],
+ ['Wezen',7.140,-26.40,1.83,0.56],['Aludra',7.401,-29.30,2.45,-0.20],['Furud',5.632,-34.07,3.27,-0.10],
+ ['Zeta Ori',5.679,-1.94,1.77,-0.21],['Alnitak',5.679,-1.94,1.77,-0.21],['Mothallah',2.120,23.46,2.64,0.00],
+ ['Alderamin',21.310,62.59,2.51,0.22],['Errai',0.688,77.63,3.21,1.00],['Kurhah',0.688,77.63,3.40,0.80],
+ ['Thuban',14.073,64.38,3.65,0.00],['Cepheus',22.283,58.24,3.52,1.00],['Achird',0.900,57.82,3.45,0.90],
+ ['Navi',0.945,60.72,2.47,-0.20],['Ruchbah',1.430,60.24,2.68,0.10],['Tsih',0.140,29.09,2.06,-0.02],
+ ['Schedar',0.675,56.54,2.24,1.00],['Mira',2.322,-2.98,2.00,1.53],['Bécři',0.726,-17.99,3.00,0.00],
+ ['Mothallah',2.120,23.46,3.41,0.00],['Caput Algol',2.120,40.96,3.44,0.00],['Mira',2.322,-2.98,3.04,1.53],
+ ['Adhil',1.162,29.12,4.23,0.00],['Rana',4.450,-9.76,3.55,0.95],['Ain',4.477,19.18,3.53,1.20],
+ ['Prima Hyadum',4.278,15.63,3.65,0.90],['Phaet',0.104,-29.62,3.85,0.00],['Mira',2.322,-2.98,4.23,1.53]
+];
+const DSO=[
+ ['M1',5.575,22.01,8.4,'SNR','Nébuleuse du Crabe'],['M2',21.56,-0.79,6.5,'GC'],['M3',13.70,28.38,6.2,'GC'],
+ ['M4',16.39,-26.53,5.9,'GC'],['M5',15.31,2.08,5.6,'GC'],['M6',17.67,-32.22,4.2,'O','Amas du Papillon'],
+ ['M7',17.90,-34.79,3.3,'O','Amas de Ptolémée'],['M8',18.06,-24.38,6.0,'N','Nébuleuse de la Lagune'],
+ ['M9',17.69,-18.52,7.7,'GC'],['M10',16.57,-4.10,6.4,'GC'],['M11',18.85,-6.27,5.8,'O','Amas du Canard sauvage'],
+ ['M12',16.77,-1.95,6.7,'GC'],['M13',16.69,36.46,5.8,'GC','Amas d\'Hercule'],['M14',17.38,-3.25,7.6,'GC'],
+ ['M15',21.50,12.17,6.2,'GC'],['M16',18.31,-13.79,6.4,'N','Nébuleuse de l\'Aigle'],
+ ['M17',18.35,-16.17,6.0,'N','Nébuleuse Oméga'],['M18',18.25,-17.13,6.9,'O'],['M19',17.05,-26.17,7.2,'GC'],
+ ['M20',18.04,-23.03,6.3,'N','Nébuleuse Trifide'],['M21',18.33,-19.44,5.9,'O'],
+ ['M22',18.61,-23.90,5.1,'GC'],['M23',17.95,-19.01,5.5,'O'],['M24',18.25,-18.50,4.6,'O','Nuage stellaire du Sagittaire'],
+ ['M25',18.31,-9.49,6.5,'O'],['M26',18.65,-9.38,8.0,'O'],['M27',19.99,22.72,7.4,'PN','Nébuleuse de l\'Haltère'],
+ ['M28',18.24,-24.87,6.8,'GC'],['M29',20.23,38.52,6.6,'O'],['M30',21.41,-23.18,7.2,'GC'],
+ ['M31',0.71,41.27,3.4,'G','Galaxie d\'Andromède'],['M32',0.71,40.86,8.1,'G'],['M33',1.56,30.66,5.7,'G','Galaxie du Triangle'],
+ ['M34',2.71,42.79,5.5,'O'],['M35',6.15,24.33,5.3,'O'],['M36',5.60,34.14,6.3,'O'],['M37',5.87,32.55,5.6,'O'],
+ ['M38',5.48,35.85,6.4,'O'],['M39',21.32,48.24,4.6,'O'],['M40',12.12,58.08,8.4,'G'],
+ ['M41',6.75,-20.76,4.5,'O'],['M42',5.59,-5.39,4.0,'N','Grande Nébuleuse d\'Orion'],
+ ['M43',5.61,-5.27,9.0,'N','Nébuleuse de Mention'],['M44',8.67,19.98,3.7,'O','Amas de la Crèche'],
+ ['M45',3.79,24.12,1.6,'O','Les Pléiades'],['M46',7.70,-14.82,6.1,'O'],['M47',7.62,-14.50,4.4,'O'],
+ ['M48',8.27,-5.48,5.8,'O'],['M49',12.50,8.00,8.4,'G'],['M50',7.05,-8.35,5.9,'O'],
+ ['M51',13.50,47.20,8.4,'G','Galaxie du Tourbillon'],['M52',23.40,61.58,6.9,'O'],
+ ['M53',12.95,18.17,7.6,'GC'],['M54',18.55,-30.48,7.6,'GC'],['M55',19.40,-30.96,6.3,'GC'],
+ ['M56',19.16,30.11,8.1,'GC'],['M57',18.89,33.03,8.8,'PN','Nébuleuse de l\'Anneau'],
+ ['M58',12.43,11.82,9.7,'G'],['M59',12.43,11.64,9.8,'G'],['M60',12.43,11.55,8.8,'G'],
+ ['M61',12.22,4.47,9.7,'G','Galaxie du Vent du Nord'],['M62',17.01,-30.07,6.5,'GC'],
+ ['M63',13.26,42.03,8.6,'G','Galaxie du Tournesol'],['M64',12.94,21.68,8.5,'G','Galaxie de l\'Œil noir'],
+ ['M65',11.31,13.09,9.3,'G'],['M66',11.33,12.99,8.9,'G'],['M67',8.80,11.80,6.1,'O'],
+ ['M68',12.67,-26.74,7.8,'GC'],['M69',18.31,-32.29,7.6,'GC'],['M70',18.43,-32.29,7.9,'GC'],
+ ['M71',19.90,18.78,8.2,'GC'],['M72',20.62,-12.54,8.6,'GC'],['M73',20.46,-12.63,9.0,'O'],
+ ['M74',1.61,15.78,9.4,'G','Galaxie du Phantom'],['M75',20.06,-21.95,8.5,'GC'],
+ ['M76',1.71,51.58,10.1,'PN','Nébuleuse du Petit Humboldt'],['M77',2.71,-0.01,8.9,'G','Galaxie du Céphée'],
+ ['M78',5.78,0.05,8.3,'N'],['M79',5.25,-24.52,8.1,'GC'],['M80',16.44,-22.98,6.8,'GC'],
+ ['M81',9.93,69.07,6.9,'G','Galaxie de Bode'],['M82',9.93,69.68,8.4,'G','Galaxie du Cigare'],
+ ['M83',13.69,-29.87,7.5,'G','Galaxie du Moulinet du Sud'],['M84',12.42,12.88,9.1,'G'],
+ ['M85',12.25,18.19,9.1,'G'],['M86',12.44,12.95,8.9,'G'],['M87',12.51,12.39,8.6,'G','M87 — jet relativiste'],
+ ['M88',12.32,14.42,9.6,'G'],['M89',12.36,12.56,9.8,'G'],['M90',12.36,13.16,9.5,'G'],
+ ['M91',12.36,14.50,10.2,'G'],['M92',17.29,43.14,6.4,'GC'],['M93',7.74,-23.86,6.0,'O'],
+ ['M94',12.88,41.09,8.1,'G'],['M95',10.73,11.70,9.7,'G'],['M96',10.98,11.82,9.2,'G'],
+ ['M97',11.25,55.02,9.9,'PN','Nébuleuse du Hibou'],['M98',12.23,14.90,10.1,'G'],
+ ['M99',12.27,14.42,9.9,'G','Galaxie du Verseau'],['M100',12.36,15.82,9.4,'G'],
+ ['M101',14.05,54.35,7.9,'G','Galaxie du Moulinet'],['M102',15.06,55.76,9.9,'G'],
+ ['M103',0.55,60.67,7.4,'O'],['M104',12.67,-11.62,8.0,'G','Galaxie du Sombrero'],
+ ['M105',10.82,12.58,9.3,'G'],['M106',12.32,47.30,8.4,'G'],['M107',16.54,-13.05,7.9,'GC'],
+ ['M108',11.11,55.67,10.0,'G'],['M109',11.60,53.37,9.8,'G'],['M110',0.68,41.68,8.5,'G'],
+ ['NGC 869/884',3.35,57.13,3.7,'O','Double Amas de Persée'],['NGC 253',0.792,-25.29,7.1,'G','Galaxie du Sculpteur'],
+ ['NGC 5128',13.423,-43.02,6.8,'G','Centaurus A'],['NGC 6960',20.761,30.71,7.0,'N','Dentelles du Cygne (O)'],
+ ['NGC 6992',20.933,31.71,7.0,'N','Dentelles du Cygne (E)'],['NGC 7000',20.976,44.53,4.0,'N','Nébuleuse Amérique du Nord'],
+ ['NGC 891',2.370,42.35,9.9,'G'],['NGC 457',1.323,58.33,6.4,'O','Amas de la Chouette'],['NGC 2237',6.552,5.00,6.7,'N','Nébuleuse de la Rosette'],
+ ['NGC 7293',22.496,-20.84,7.6,'PN','Nébuleuse de l\'Hélice'],['NGC 5139',13.447,-47.48,3.7,'GC','Oméga du Centaure'],
+ ['NGC 104',0.400,-72.08,4.1,'GC','47 Tucanae'],['NGC 3372',10.75,-59.87,1.0,'N','Nébuleuse de la Carène'],
+ ['IC 434',5.68,-2.46,7.3,'N','Nébuleuse Tête de Cheval'],['IC 2118',5.10,-7.20,6.0,'N','Tête de Sorcière'],
+ ['IC 1396',21.65,57.50,3.5,'N'],['IC 2602',10.17,-48.30,1.9,'O','Pléiades du Sud'],['IC 2391',8.67,-47.80,2.5,'O'],
+ ['IC 4662',17.77,-4.85,7.1,'N'],
+ // === Additional NGC/IC: nebulae, galaxies, clusters ===
+ ['NGC 2024',5.69,-1.85,6.3,'N','Nébuleuse de la Flamme'],['NGC 2169',6.08,13.85,5.9,'O','Amas 37'],
+ ['NGC 7023',21.02,68.17,6.8,'N','Nébuleuse de la Violette'],['NGC 2264',6.41,9.93,3.9,'N','Amas du Noël / Filtre'],
+ ['NGC 6543',17.59,66.63,8.1,'PN','Nébuleuse de l\'Œil de Chat'],['NGC 6826',19.75,50.53,8.6,'PN','Planétaire Blinking'],
+ ['NGC 7662',1.88,42.78,8.3,'PN','Nébuleuse de la Boule de Neige'],['NGC 3242',10.27,-18.70,7.6,'PN','Fantôme de Jupiter'],
+ ['NGC 1535',4.05,-12.63,9.3,'PN'],['NGC 2392',7.38,20.91,8.3,'PN','Nébuleuse de l\'Escalier de Cosinus'],
+ ['NGC 6572',18.12,9.37,8.1,'PN'],['NGC 2440',7.41,18.34,9.4,'PN'],
+ ['NGC 3627',11.00,12.99,8.9,'G','M66'],['NGC 4258',12.19,47.19,8.2,'G','M106'],
+ ['NGC 2903',9.42,21.50,9.0,'G'],['NGC 3115',10.05,-7.72,9.2,'G','Galaxie du Fusil'],
+ ['NGC 4565',12.36,25.97,9.6,'G','Galaxie Aiguille'],['NGC 3034',9.93,69.68,8.4,'G','M82'],
+ ['NGC 2403',7.67,65.60,8.5,'G'],['NGC 185',0.97,48.34,9.4,'G'],['NGC 147',0.93,48.51,9.5,'G'],
+ ['NGC 6822',19.81,-14.80,8.7,'G','Galaxie de Barnard'],['NGC 7793',23.98,-32.65,9.2,'G'],
+ ['NGC 6946',20.61,60.15,8.9,'G','Galaxie des Feux d\'artifice'],['NGC 3190',10.18,21.90,10.3,'G'],
+ ['NGC 3310',10.38,53.50,10.0,'G'],['NGC 4038',12.14,-18.52,9.7,'G','Antennes'],
+ ['NGC 4039',12.26,-18.52,10.4,'G'],['NGC 4618',12.62,41.07,10.5,'G'],['NGC 4621',12.71,11.65,9.8,'G','M59'],
+ ['NGC 4374',12.53,12.88,9.3,'G','M84'],['NGC 5907',15.30,56.07,10.1,'G','Galaxie du Crayon'],
+ ['NGC 6744',19.10,-63.86,8.6,'G'],['NGC 3521',11.05,0.27,9.0,'G'],['NGC 4826',12.97,21.68,8.5,'G','M64'],
+ ['NGC 5054',13.37,-16.38,10.0,'G'],['NGC 1300',3.20,-19.41,10.1,'G'],['NGC 1365',3.60,-36.14,9.8,'G'],
+ ['NGC 5236',13.92,-29.52,7.9,'G','M83'],['NGC 6357',17.38,-34.38,6.3,'N','Nébuleuse de la Guerre et de la Paix'],
+ ['NGC 6523',18.06,-24.38,6.0,'N','M8'],['NGC 3351',10.38,11.70,9.7,'G','M95'],
+ ['NGC 3368',10.58,11.82,9.2,'G','M96'],['NGC 5457',14.05,54.35,7.9,'G','M101'],
+ ['NGC 2841',9.30,50.98,9.2,'G'],['NGC 6781',19.31,6.68,11.2,'PN'],
+ ['NGC 6853',20.09,22.72,7.4,'PN','M27'],['NGC 3628',11.23,13.36,9.5,'G'],
+ ['NGC 4569',12.62,13.16,9.5,'G','M90'],['NGC 4725',12.82,25.50,10.1,'G'],
+ ['NGC 5866',15.10,55.76,10.0,'G','Galaxie du Fuseau'],['NGC 7331',22.37,34.25,9.5,'G'],
+ ['NGC 7318',22.03,33.90,13.0,'G','Stephan\'s Quintet'],['NGC 7319',22.03,33.95,13.5,'G'],
+ ['NGC 7320',22.03,33.98,12.5,'G'],['NGC 7317',22.03,33.97,13.5,'G','Stephan\'s Quintet'],
+ ['NGC 7332',22.37,34.08,10.8,'G'],['NGC 2244',6.32,4.94,4.8,'O','Amas de la Rosette'],
+ ['NGC 1976',5.59,-5.39,4.0,'N','M42'],['NGC 1982',5.61,-5.27,9.0,'N','M43'],
+ ['NGC 7000',20.976,44.53,4.0,'N','Amérique du Nord'],['NGC 7023',21.02,68.17,6.8,'N','Nébuleuse de la Violette'],
+ ['NGC 1491',4.01,51.22,9.0,'N'],['NGC 6888',20.12,38.43,7.4,'N','Nébuleuse du Croissant'],
+ ['NGC 6543',17.59,66.63,8.1,'PN','Œil de Chat'],['NGC 246',0.73,-8.26,8.0,'PN','Nébuleuse du Crâne'],
+ ['NGC 1365',3.60,-36.14,9.8,'G'],['NGC 300',0.75,-29.98,7.8,'G'],['NGC 55',0.68,-39.21,8.2,'G'],
+ ['NGC 247',0.76,-20.84,9.1,'G'],['NGC 6744',19.10,-63.86,8.6,'G','Milieu austral analogue'],
+ ['NGC 1566',4.32,-54.93,9.5,'G'],['NGC 3621',11.23,-32.81,8.2,'G'],['NGC 4945',13.05,-49.48,8.7,'G'],
+ ['NGC 5128',13.423,-43.02,6.8,'G','Centaurus A — jonct relativiste'],
+ ['NGC 1097',2.79,-30.28,9.2,'G'],['NGC 1300',3.20,-19.41,10.1,'G','Galaxie barrée'],
+ ['NGC 5236',13.92,-29.52,7.9,'G','M83'],['NGC 1365',3.60,-36.14,9.8,'G','Grande spirale barrée'],
+ ['NGC 6822',19.81,-14.80,8.7,'G','Barnard — irrégulière proche'],
+ ['NGC 300',0.75,-29.98,7.8,'G','Sculpteur'],['NGC 55',0.68,-39.21,8.2,'G','Sculpteur'],
+ // === Additional famous deep-sky objects ===
+ ['NGC 7331',22.37,34.25,9.5,'G','Amas de la Phoque'],['NGC 891',2.37,42.35,9.9,'G','Galaxie edge-on Andromède'],
+ ['NGC 253',0.79,-25.29,7.1,'G','Galaxie du Sculpteur'],['NGC 55',0.68,-39.21,8.2,'G','Sculpteur dwarf'],
+ ['NGC 3077',10.03,68.74,9.7,'G','Compagnon M81'],['NGC 2403',7.67,65.60,8.5,'G','Girafe'],
+ ['NGC 6946',20.61,60.15,8.9,'G','Galaxie des Feux d\'artifice'],
+ ['NGC 2787',9.24,69.10,10.7,'G','Lentille barrée Ursa Major'],
+ ['NGC 3379',10.60,12.58,9.3,'G','M105'],['NGC 3992',11.97,53.37,9.8,'G','M109'],
+ ['NGC 4274',12.35,29.41,10.4,'G','Spirale barrée Cheveux de Bérénice'],
+ ['NGC 4559',12.36,27.98,9.6,'G','Coma Berenices spirale'],
+ ['NGC 4565',12.36,25.97,9.6,'G','Galaxie Aiguille'],['NGC 5907',15.30,56.07,10.1,'G','Galaxie du Crayon'],
+ ['NGC 5005',13.11,37.21,9.8,'G'],['NGC 5054',13.37,-16.38,10.0,'G'],
+ ['NGC 5364',13.55,5.80,10.2,'G','Spirale relieur'],['NGC 4038',12.14,-18.52,9.7,'G','Antennes galaxie A'],
+ ['NGC 4039',12.26,-18.52,10.4,'G','Antennes galaxie B'],['NGC 4618',12.62,41.07,10.5,'G','MAGellanic-type'],
+ ['NGC 5468',14.07,-1.94,10.6,'G'],['NGC 4414',12.36,31.22,9.4,'G','Flocculent spiral'],
+ ['NGC 3627',11.00,12.99,8.9,'G','M66'],['NGC 3628',11.23,13.36,9.5,'G','Galaxie Hamburger'],
+ ['NGC 2903',9.42,21.50,9.0,'G','Léon spirale'],['NGC 3115',10.05,-7.72,9.2,'G','Galaxie du Fusil'],
+ ['NGC 1309',3.28,-15.40,10.7,'G','Lentille Hydra'],['NGC 3310',10.38,53.50,10.0,'G','Starburst Bear'],
+ ['NGC 4697',12.48,10.49,9.3,'G','Virgo elliptical'],['NGC 4649',12.43,11.64,8.8,'G','M60'],
+ ['NGC 4374',12.53,12.88,9.3,'G','M84'],['NGC 4552',12.61,12.57,9.2,'G','M89'],
+ ['NGC 4486',12.61,12.57,8.6,'G','M87 — jet relativiste'],['NGC 4438',12.38,13.16,9.8,'G','Yeux de Virgo A'],
+ ['NGC 4435',12.37,13.18,9.6,'G','Yeux de Virgo B'],['NGC 4526',12.63,11.25,9.2,'G','Virgo lenticulaire'],
+ ['NGC 4382',12.58,18.19,9.1,'G','M85'],['NGC 4216',12.36,13.25,9.8,'G','Virgo spirale edge-on'],
+ ['NGC 4501',12.53,14.42,9.6,'G','M88'],['NGC 4303',12.32,4.47,9.7,'G','M61'],
+ ['NGC 4535',12.52,8.20,9.8,'G','Virgo spirale barrée'],['NGC 4450',12.48,17.09,10.0,'G','Virgo spirale'],
+ ['NGC 4725',12.82,25.50,10.1,'G','Coma spiral'],['NGC 3184',10.18,41.67,9.7,'G','Lynx spirale'],
+ ['NGC 2841',9.30,50.98,9.2,'G','Ursa Major'],['NGC 6503',17.93,69.19,9.9,'G','Dragon lentille'],
+ ['NGC 3521',11.05,0.27,9.0,'G','Léon spirale'],['NGC 7793',23.98,-32.65,9.2,'G','Sculpteur irrégulière'],
+ ['NGC 1566',4.32,-54.93,9.5,'G','Séi\'ns spiral'],['NGC 4945',13.05,-49.48,8.7,'G','Centaurus edge-on'],
+ ['NGC 1097',2.79,-30.28,9.2,'G','Fourneau spirale barrée'],['NGC 3621',11.23,-32.81,8.2,'G','Hydre spirale'],
+ ['NGC 6822',19.81,-14.80,8.7,'G','Galaxie de Barnard'],['NGC 185',0.97,48.34,9.4,'G','Compagnon Andromède B'],
+ ['NGC 147',0.93,48.51,9.5,'G','Compagnon Andromède C'],['NGC 224-SAT',0.68,41.27,13.0,'G','Satellite Andromède'],
+ ['NGC 1313',3.18,-66.50,9.2,'G','Sculpteur barrée'],['NGC 5128',13.42,-43.02,6.8,'G','Centaurus A'],
+ ['NGC 6744',19.10,-63.86,8.6,'G','Paon analogue Milky Way'],
+ ['IC 1613',1.71,2.12,9.3,'G','Cetus dwarf'],['IC 10',0.21,59.59,9.5,'G','Cassiopea dwarf starburst'],
+ ['IC 342',3.69,68.10,8.9,'G','Girafe spirale'],['IC 434',5.68,-2.46,7.3,'N','Nébuleuse Tête de Cheval'],
+ ['IC 2118',5.10,-7.20,6.0,'N','Tête de Sorcière'],['IC 1396',21.65,57.50,3.5,'N','Elephant Trunk nebula'],
+ ['IC 434',5.68,-2.46,7.3,'N','Horsehead emission'],['IC 2944',11.68,-63.00,4.5,'O','Running Chicken cluster'],
+ ['IC 2395',8.70,-48.30,4.6,'O'],['IC 4651',17.57,-49.50,6.9,'O'],
+ ['IC 2602',10.17,-48.30,1.9,'O','Theta Carinae cluster'],['IC 4725',18.50,-23.50,4.2,'O','M25'],
+ ['NGC 7000',20.98,44.53,4.0,'N','Amérique du Nord'],['NGC 7023',21.02,68.17,6.8,'N','Nébuleuse de la Violette'],
+ ['NGC 1976',5.59,-5.39,4.0,'N','Grande Nébuleuse d\'Orion'],['NGC 1982',5.61,-5.27,9.0,'N','M43 De Mairan'],
+ ['NGC 2024',5.69,-1.85,6.3,'N','Nébuleuse de la Flamme'],['NGC 2237',6.55,5.00,6.7,'N','Nébuleuse de la Rosette'],
+ ['NGC 6357',17.38,-34.38,6.3,'N','Guerre et Paix'],['NGC 6523',18.06,-24.38,6.0,'N','M8 Lagune'],
+ ['NGC 6618',18.23,-16.17,6.0,'N','M17 Oméga'],['NGC 6302',17.14,-37.10,7.2,'PN','Nébuleuse Insecte'],
+ ['NGC 6543',17.59,66.63,8.1,'PN','Œil de Chat'],['NGC 6826',19.75,50.53,8.6,'PN','Planétaire Blinking'],
+ ['NGC 7662',1.88,42.78,8.3,'PN','Boule de Neige'],['NGC 3242',10.27,-18.70,7.6,'PN','Fantôme de Jupiter'],
+ ['NGC 1535',4.05,-12.63,9.3,'PN'],['NGC 2392',7.38,20.91,8.3,'PN','Eskimo nebula'],
+ ['NGC 6572',18.12,9.37,8.1,'PN'],['NGC 2440',7.41,18.34,9.4,'PN','Polyphemus'],
+ ['NGC 7293',22.50,-20.84,7.6,'PN','Nébuleuse de l\'Hélice'],['NGC 246',0.73,-8.26,8.0,'PN','Nébuleuse du Crâne'],
+ ['NGC 6781',19.31,6.68,11.2,'PN'],['NGC 3587',11.17,55.02,9.9,'PN','M97 Hibou'],
+ ['NGC 206',0.71,41.27,13.0,'O','Bras spiral Andromède'],
+ ['NGC 1893',3.74,33.41,7.5,'O','Lacerta cluster'],['NGC 188',0.80,85.26,8.1,'GC','Cepheus ancient'],
+ ['NGC 5466',13.28,28.55,9.1,'GC','Boötes'],['NGC 6341',17.17,43.14,6.4,'GC','M92 Hercule'],
+ ['NGC 6205',16.69,36.46,5.8,'GC','M13 Amas d\'Hercule'],
+ ['NGC 6218',16.63,-1.95,6.7,'GC','M12'],['NGC 6121',16.39,-26.53,5.9,'GC','M4 Scorpion'],
+ ['NGC 6171',16.47,-12.77,8.0,'GC','M107 Ophiuchus'],['NGC 6366',17.28,-3.35,8.4,'GC','Ophiuchus'],
+ ['NGC 6638',18.42,-25.50,9.0,'GC'],['NGC 6712',18.81,-8.97,8.2,'GC','Scutum'],
+ ['NGC 6388',17.68,-44.39,6.8,'GC'],['NGC 6441',17.88,-37.05,7.2,'GC','Scorpius'],
+ ['NGC 6779',19.16,30.11,8.1,'GC','M56 Lyre'],['NGC 6864',20.06,-21.95,8.5,'GC','M75 Sagittaire'],
+ ['NGC 7089',21.56,-0.79,6.5,'GC','M2'],['NGC 5053',13.16,17.70,9.8,'GC','Coma Berenices'],
+ ['NGC 5904',15.18,2.08,5.6,'GC','M5 Serpent'],['NGC 6254',16.57,-4.10,6.4,'GC','M10'],
+ ['NGC 5272',13.42,28.38,6.2,'GC','M3 Canes Venatici'],['NGC 6333',17.69,-18.52,7.7,'GC','M9'],
+ ['NGC 6656',18.61,-23.90,5.1,'GC','M22 Sagittaire'],['NGC 7099',21.41,-23.18,7.2,'GC','M30'],
+ ['NGC 288',0.13,-26.58,8.1,'GC','Sculpteur'],['NGC 362',0.17,-30.85,6.6,'GC','Tucana'],
+ ['NGC 1851',3.95,-40.58,7.3,'GC','Colombe'],['NGC 1261',3.15,-55.25,8.1,'GC','Horologium'],
+ ['NGC 6352',17.18,-48.31,7.9,'GC'],['NGC 6362',17.31,-67.03,8.1,'GC','Ara'],
+ ['NGC 6139',16.55,-38.60,8.4,'GC'],['NGC 6496',17.99,-44.17,8.6,'GC','Scorpius'],
+ ['NGC 6715',18.55,-30.48,7.6,'GC','M54 Sagittaire'],['NGC 6681',18.43,-32.29,7.9,'GC','M70'],
+ ['NGC 6779',19.16,30.11,8.1,'GC','M56'],['NGC 7006',21.02,16.21,9.2,'GC','Delphinus'],
+ ['NGC 6981',20.62,-12.54,8.6,'GC','M72 Verseau'],['NGC 6934',20.34,7.24,8.7,'GC','Delphinus'],
+ ['NGC 6426',17.75,-3.35,10.5,'GC'],['NGC 6316',17.25,-29.35,8.8,'GC','Hercules'],
+ ['NGC 5897',15.17,-21.61,8.6,'GC','Libra'],['NGC 5139',13.45,-47.48,3.7,'GC','Oméga du Centaure'],
+ ['NGC 104',0.40,-72.08,4.1,'GC','47 Tucanae'],['NGC 5286',13.81,-51.31,7.6,'GC','Centaurus'],
+ ['NGC 6093',16.44,-22.98,6.8,'GC','M80 Scorpion'],['NGC 4147',12.25,18.27,10.4,'GC','Coma'],
+ ['NGC 6752',19.11,-59.99,5.4,'GC','Pavo'],['NGC 6397',17.41,-53.67,5.7,'GC','Ara'],
+ ['NGC 4590',12.59,-26.74,7.8,'GC','M68 Hydra'],['NGC 4833',12.88,-83.41,7.5,'GC','Musca'],
+ ['AM 0-314',1.03,-34.52,8.5,'G','Grus quartet'],['NGC 1569',4.26,64.65,9.4,'G','Girafe starburst dwarf'],
+ ['NGC 300',0.75,-29.98,7.8,'G','Sculpteur Group'],['NGC 598',1.56,30.66,5.7,'G','M33 Triangle'],
+ ['NGC 4244',12.20,37.57,9.9,'G','Canes Venatici edge-on'],
+ ['NGC 224-SAT2',0.53,40.31,13.5,'G','Andromède dwarf'],
+ ['NGC 4244',12.20,37.57,9.9,'G','Canes Venatici edge-on'],['NGC 1569',4.26,64.65,9.4,'G','Girafe starburst dwarf'],
+ ['NGC 6397',17.41,-53.67,5.7,'GC','Ara'],['NGC 6752',19.11,-59.99,5.4,'GC','Pavo'],
+ ['NGC 5139',13.45,-47.48,3.7,'GC','Oméga du Centaure'],['NGC 104',0.40,-72.08,4.1,'GC','47 Tucanae'],
+ ['NGC 7089',21.56,-0.79,6.5,'GC','M2 Amas globulaire'],
+ ['NGC 5272',13.42,28.38,6.2,'GC','M3 Canes Venatici'],
+ ['NGC 5904',15.18,2.08,5.6,'GC','M5 Serpent'],['NGC 6254',16.57,-4.10,6.4,'GC','M10 Ophiuchus'],
+ ['NGC 6205',16.69,36.46,5.8,'GC','M13 Amas d\'Hercule'],['NGC 6341',17.17,43.14,6.4,'GC','M92 Hercule'],
+ ['NGC 6656',18.61,-23.90,5.1,'GC','M22 Sagittaire'],['NGC 6121',16.39,-26.53,5.9,'GC','M4 Scorpion'],
+ ['NGC 6779',19.16,30.11,8.1,'GC','M56 Lyre'],['NGC 6999',21.41,-23.18,7.2,'GC','M30'],
+ ['NGC 6333',17.69,-18.52,7.7,'GC','M9 Ophiuchus'],['NGC 6218',16.63,-1.95,6.7,'GC','M12'],
+ ['NGC 5897',15.17,-21.61,8.6,'GC','Libra'],['NGC 6981',20.62,-12.54,8.6,'GC','M72 Verseau'],
+ ['NGC 7006',21.02,16.21,9.2,'GC','Delphinus'],['NGC 6934',20.34,7.24,8.7,'GC','Delphinus'],
+ ['NGC 4147',12.25,18.27,10.4,'GC','Coma'],['NGC 4590',12.59,-26.74,7.8,'GC','M68 Hydra'],
+ ['NGC 6093',16.44,-22.98,6.8,'GC','M80'],['NGC 5466',13.28,28.53,9.1,'GC','Boötes'],
+ ['NGC 5053',13.16,17.70,9.8,'GC','Coma Berenices'],
+ ['NGC 185',0.97,48.34,9.4,'G','Compagnon Andromède B'],['NGC 147',0.93,48.51,9.5,'G','Compagnon Andromède C'],
+ ['NGC 3077',10.03,68.74,9.7,'G','Compagnon M81'],['NGC 6352',17.18,-48.31,7.9,'GC','Ara'],
+ ['NGC 288',0.13,-26.58,8.1,'GC','Sculpteur'],['NGC 362',0.17,-30.85,6.6,'GC','Tucana'],
+ ['NGC 6715',18.55,-30.48,7.6,'GC','M54 Sagittaire'],['NGC 6681',18.43,-32.29,7.9,'GC','M70'],
+ ['NGC 6712',18.81,-8.97,8.2,'GC','Scutum'],['NGC 6388',17.68,-44.39,6.8,'GC','Scorpius'],
+ ['NGC 6441',17.88,-37.05,7.2,'GC','Scorpius deep'],['NGC 6496',17.99,-44.17,8.6,'GC','Scorpius southern'],
+ ['NGC 6864',20.06,-21.95,8.5,'GC','M75 Sagittaire'],['NGC 6838',19.90,18.78,8.2,'GC','M71 Sagitta'],
+ ['NGC 6171',16.47,-12.77,8.0,'GC','M107'],['NGC 6366',17.28,-3.35,8.4,'GC','Ophiuchus'],
+ ['NGC 2392',7.38,20.91,8.3,'PN','Nébuleuse de l\'Eskimo'],['NGC 1501',6.40,60.48,10.7,'PN','Caméléon'],
+ ['NGC 6578',18.12,9.37,8.1,'PN'],['NGC 2022',5.69,-9.90,11.1,'PN','Orion sac d\'argent'],
+ ['NGC 6210',16.85,23.78,8.8,'PN','Tortue'],['NGC 6894',20.38,38.43,9.9,'PN','Cygnus Ring'],
+ ['NGC 6772',19.31,6.68,11.2,'PN','Aquila'],['NGC 6807',19.48,9.47,12.1,'PN'],
+ ['NGC 6790',19.40,9.47,10.0,'PN','Aquila small'],['NGC 6309',17.32,-12.94,10.8,'PN','Box nebula']
+];
+const CONSTS=[
+ ['Orion',[['Bételgeuse','Bellatrix'],['Bellatrix','Mintaka'],['Mintaka','Alnilam'],['Alnilam','Alnitak'],['Alnitak','Bételgeuse'],['Alnitak','Saiph'],['Saiph','Rigel'],['Rigel','Mintaka']]],
+ ['Grande Ourse',[['Dubhe','Merak'],['Merak','Phecda'],['Phecda','Megrez'],['Megrez','Dubhe'],['Megrez','Alioth'],['Alioth','Mizar'],['Mizar','Alkaid']]],
+ ['Cassiopée',[['Caph','Schedar'],['Schedar','Navi'],['Navi','Ruchbah'],['Ruchbah','Segin']]],
+ ['Croix du Sud',[['Acrux','Gacrux'],['Mimosa','Imai']]],
+ ['Scorpion',[['Acrab','Dschubba'],['Pi Sco','Dschubba'],['Dschubba','Antarès'],['Antarès','Tau Sco'],['Tau Sco','Eps Sco'],['Eps Sco','Kap Sco'],['Kap Sco','Up Sco'],['Up Sco','Shaula'],['Shaula','Sargas']]],
+ ['Lyre',[['Véga','Sheliak'],['Sheliak','Sulafat'],['Sulafat','Delta Lyr'],['Delta Lyr','Véga']]],
+ ['Cygne',[['Deneb','Sadr'],['Sadr','Albireo'],['Sadr','Gienah Cyg'],['Sadr','Delta Cyg']]],
+ ['Grand Chien',[['Sirius','Mirzam'],['Sirius','Wezen'],['Wezen','Adhara'],['Wezen','Aludra']]],
+ ['Taureau',[['Aldébaran','Elnath'],['Aldébaran','Alcyone']]],
+ ['Petite Ourse',[['Polaris','Kochab'],['Kochab','Pherkad'],['Pherkad','Yildun'],['Yildun','Epsilon UMi'],['Epsilon UMi','Zeta UMi'],['Zeta UMi','Eta UMi'],['Eta UMi','Polaris']]],
+ ['Lion',[['Regulus','Denebola'],['Regulus','Algieba'],['Algieba','Zosma'],['Zosma','Denebola'],['Zosma','Chertan'],['Chertan','Regulus']]],
+ ['Verseau',[['Sadalmelik','Sadalsuud'],['Sadalsuud','Skat'],['Sadalmelik','Albali'],['Skat','Fomalhaut']]],
+ ['Balance',[['Zubeneschamili','Zubenelgenubi'],['Zubeneschamili','Zubenalakrab']]],
+ ['Centaure',[['Hadar','Agena'],['Agena','Muhlifain'],['Hadar','Menkent']]],
+ ['Paon',[['Peacock','Delta Pav'],['Alpha Pav','Delta Pav']]],
+ ['Hydre',[['Alphard','Zubenalakrab'],['Alphard','Diphda']]],
+ ['Corbeau',[['Gienah','Kraz'],['Kraz','Algorab'],['Algorab','Minkar']]]
+];
+const MW_BAND=[[17.75,-29],[18.7,-6],[19.8,8],[20.6,40],[22.0,58],[0.9,60],[3.5,47],[5.7,29],[6.4,-5],[7.3,-24],[8.9,-45],[10.8,-60],[12.5,-58],[13.9,-50],[15.6,-44],[16.9,-38]];
+// === Expanded named stars (additional well-known stars) ===
+const EXTRA_STARS=[
+ ['Enif',21.440,9.88,2.39,1.52],['Zubeneschamili',15.283,-9.38,2.61,-0.11],['Vindemiatrix',13.036,10.96,2.83,0.94],
+ ['Unukalhai',9.670,6.42,2.65,1.24],['Mira',2.322,-2.98,3.04,1.53],['Thuban',14.073,64.38,3.67,0.00],
+ ['Zosma',11.235,20.52,2.56,0.13],['Chertan',10.298,20.32,3.34,0.09],['Cor Caroli',12.900,38.32,2.90,0.00],
+ ['Muphrid',13.910,18.40,2.68,0.86],['Kornephoros',16.256,21.49,2.77,0.94],['Zeta Her',16.687,31.60,2.81,-0.11],
+ ['Eta Her',16.953,38.92,3.53,0.00],['Pi Her',17.248,36.81,3.15,0.00],['Zeta Oph',16.620,-10.57,2.56,0.02],
+ ['Delta Oph',16.576,-3.69,2.75,1.16],['Eta Oph',17.171,-15.72,2.43,0.06],['Epsilon Oph',16.502,-10.27,3.23,0.95],
+ ['Enif',21.440,9.88,2.39,1.52],['Kappa Ori',5.472,-9.40,2.06,-0.18],['Lambda Vel',8.149,-43.30,2.21,1.67],
+ ['Zeta Pup',7.588,-40.00,2.21,-0.23],['Iota Aur',4.946,33.17,2.69,0.07],['Epsilon Aur',4.998,43.82,2.99,0.89],
+ ['Rana',4.254,-9.39,3.54,0.06],['Zubr',14.747,48.96,3.48,0.00],['Edasich',15.259,58.97,3.37,1.12],
+ ['Epsilon Gem',6.720,25.13,3.06,0.00],['Mu Gem',6.381,22.51,2.88,-0.19],['Lambda Gem',7.582,16.40,3.58,0.00],
+ ['Cor Hydrae',9.460,-8.66,1.98,1.40],['Alphard',9.460,-8.66,1.98,1.40],['Theta Cen',14.111,-36.37,2.06,0.72],
+ ['Epsilon Cen',13.866,-53.40,2.30,-0.10],['Eta Cen',14.353,-42.11,2.31,-0.10],['Zeta Cen',13.558,-47.29,2.55,-0.10],
+ ['Iota Cen',14.183,-50.00,2.66,0.00],['Delta Mus',13.263,-71.55,2.77,0.15],['Rho Oph',16.250,-23.27,4.63,0.00],
+ ['Alfard',9.460,-8.66,1.98,1.40],['Thuban',14.073,64.38,3.67,0.00],['Dubhe',11.062,61.75,1.79,1.07],
+ ['Sualocin',20.922,-15.96,3.77,0.10],['Rotanev',20.427,-14.79,3.60,0.00],['Diphda',0.726,-17.99,2.02,1.02],
+ ['Nashira',22.081,-17.54,3.68,0.00],['Saiph',5.796,-9.67,2.09,-0.24],['Cursa',5.446,-5.91,3.85,-0.20],
+ ['Acrab',16.091,-19.81,2.62,-0.20],['Fang',16.091,-19.81,2.62,-0.20],['Acrux',12.443,-63.10,0.76,-0.24],
+ ['Suhail',9.322,-43.44,2.23,1.67],['Wezen',7.140,-26.40,1.83,0.56],['Adhara',6.977,-28.97,1.50,-0.21],
+ ['Mirzam',6.378,-17.96,1.98,-0.24],['Aludra',7.401,-29.30,2.45,-0.20],['Naos',8.020,-40.00,2.21,-0.23]
+];
+const BG_STARS_RNG=mulberry32(12345);
+const BG_STAR_COUNT=600;
+const bgStarData=new Float32Array(BG_STAR_COUNT*4);
+for(let i=0;i<BG_STAR_COUNT;i++){
+  const ra=BG_STARS_RNG()*24, dec=(BG_STARS_RNG()-0.5)*160;
+  const mag=3.5+BG_STARS_RNG()*2.0;
+  const bv=-0.3+BG_STARS_RNG()*1.8;
+  bgStarData[i*4]=ra; bgStarData[i*4+1]=dec; bgStarData[i*4+2]=mag; bgStarData[i*4+3]=bv;
+}
+const starMap={}; STARS.forEach(s=>starMap[s[0]]=s);
+// Merge extra named stars into catalog
+for(const es of EXTRA_STARS){ if(!starMap[es[0]]){ STARS.push(es); starMap[es[0]]=es; } }
+function bvTemp(bv){ return 4600*(1/(0.92*bv+1.7)+1/(0.92*bv+0.62)); }
+function tempRGB(t){
+  t=Math.max(1000,Math.min(40000,t))/100; let r,g,b;
+  if(t<=66){ r=255; g=99.47*Math.log(t)-161.12; } else { r=329.7*Math.pow(t-60,-0.1332); g=288.12*Math.pow(t-60,-0.0755); }
+  if(t>=66) b=255; else if(t<=19) b=0; else b=138.52*Math.log(t-10)-305.04;
+  const cl=v=>Math.max(0,Math.min(255,Math.round(v)));
+  return [cl(r),cl(g),cl(b)];
+}
+function fmtRA(raH){ const h=Math.floor(raH); const m=Math.round((raH-h)*60)%60; return `${h+(m===60?1:0)}h ${String(m===60?0:m).padStart(2,'0')}m`; }
+function fmtDec(d){ const s=d<0?'−':'+'; d=Math.abs(d); const mm=Math.round((d%1)*60)%60; return `${s}${Math.floor(d)+(mm===60?1:0)}° ${String(mm===60?0:mm).padStart(2,'0')}′`; }
+const TYPE_FR={G:'Galaxie',O:'Amas ouvert',GC:'Amas globulaire',N:'Nébuleuse',PN:'Nébuleuse planétaire',SNR:'Reste de supernova'};
+function eqToVec(raH,decDeg,r){ const a=raH*15*RAD,d=decDeg*RAD,cd=Math.cos(d);
+  return new THREE.Vector3(cd*Math.sin(a)*r,Math.sin(d)*r,cd*Math.cos(a)*r); }
+function altAz(raH,decDeg,lstH){
+  const H=(lstH-raH)*15*RAD;
+  const dec=decDeg*RAD, phi=userLat*RAD;
+  const sinAlt=Math.sin(dec)*Math.sin(phi)+Math.cos(dec)*Math.cos(phi)*Math.cos(H);
+  const alt=Math.asin(THREE.MathUtils.clamp(sinAlt,-1,1));
+  const az=Math.atan2(-Math.cos(dec)*Math.sin(H), Math.sin(dec)*Math.cos(phi)-Math.cos(dec)*Math.sin(phi)*Math.cos(H));
+  return [alt,az];
+}
+const LAT_OB=48.8566; /* Paris default — lat */
+const LON_OB=2.3522;  /* Paris default — lon */
+let userLat=LAT_OB, userLon=LON_OB;
+/* Try to get real GPS position */
+if(navigator.geolocation){
+  navigator.geolocation.getCurrentPosition(pos=>{
+    userLat=pos.coords.latitude; userLon=pos.coords.longitude;
+    const info=document.getElementById('skyInfo');
+    if(info) info.textContent=`SkyMap — Position réelle: ${userLat.toFixed(2)}°N ${userLon.toFixed(2)}°E`;
+  },()=>{},{timeout:5000});
+}
+function daysSinceJ2000(date){ return date.getTime()/86400000-10957.5; }
+function getLST(date){
+  let gmst=280.46061837+360.98564736629*daysSinceJ2000(date);
+  /* Local Sidereal Time = GMST + observer longitude (in degrees) */
+  let lst=gmst+userLon;
+  return (((lst%360)+360)%360)/15; /* hours */
+}
+function sunRADec(date){
+  const n=daysSinceJ2000(date);
+  const L=280.460+0.9856474*n, g=(357.528+0.9856003*n)*RAD;
+  const lambda=(L+1.915*Math.sin(g)+0.020*Math.sin(2*g))*RAD;
+  const eps=23.439*RAD;
+  const ra=Math.atan2(Math.cos(eps)*Math.sin(lambda),Math.cos(lambda));
+  const dec=Math.asin(Math.sin(eps)*Math.sin(lambda));
+  return [((ra/RAD)/15+24)%24,dec/RAD];
+}
+function moonRADec(date){
+  const n=daysSinceJ2000(date);
+  const L=218.316+13.176396*n, M=(134.963+13.064993*n)*RAD, F=(93.272+13.229350*n)*RAD;
+  const lambda=(L+6.289*Math.sin(M))*RAD, beta=5.128*Math.sin(F)*RAD;
+  const eps=23.439*RAD;
+  const ra=Math.atan2(Math.sin(lambda)*Math.cos(eps)-Math.tan(beta)*Math.sin(eps),Math.cos(lambda));
+  const dec=Math.asin(Math.sin(beta)*Math.cos(eps)+Math.cos(beta)*Math.sin(eps)*Math.sin(lambda));
+  return [((ra/RAD)/15+24)%24,dec/RAD];
+}
+const SKY_PL=[
+ {name:'Mercure',a:0.387,L0:252.25,per:87.969,col:'#d8d0c6'},
+ {name:'Vénus',a:0.723,L0:181.98,per:224.701,col:'#ffe9b8'},
+ {name:'Mars',a:1.524,L0:355.45,per:686.980,col:'#ff9a66'},
+ {name:'Jupiter',a:5.203,L0:34.40,per:4332.589,col:'#ffd9a0'},
+ {name:'Saturne',a:9.537,L0:49.94,per:10759.22,col:'#f0dfae'}];
+function planetGeoRadec(date,p){
+  const d=daysSinceJ2000(date);
+  const le=(100.46+360/365.256*d)*RAD;
+  const xe=Math.cos(le), ye=Math.sin(le);
+  const lp=(p.L0+360/p.per*d)*RAD;
+  const x=p.a*Math.cos(lp)-xe, y=p.a*Math.sin(lp)-ye;
+  const lam=Math.atan2(y,x); const eps=23.439*RAD;
+  const ra=Math.atan2(Math.cos(eps)*Math.sin(lam),Math.cos(lam));
+  const dec=Math.asin(Math.sin(eps)*Math.sin(lam));
+  return [((ra/RAD)/15+24)%24,dec/RAD];
+}
+
+/* =========================================================
+   🎯 FISHEYE « BULLSEYE » (mode ciel hors-ligne)
+   ========================================================= */
+const asCanvas=document.getElementById('allsky');
+const ag=asCanvas.getContext('2d');
+const fsShow={lines:true,names:true,grid:true,mw:true,ecl:true};
+const starCols=STARS.map(s=>tempRGB(bvTemp(s[4])));
+function mixC(a,b,t){ return `rgb(${Math.round(a[0]+(b[0]-a[0])*t)},${Math.round(a[1]+(b[1]-a[1])*t)},${Math.round(a[2]+(b[2]-a[2])*t)})`; }
+const moonDisc=(function(){ const c=document.createElement('canvas'); c.width=c.height=64;
+  const g=c.getContext('2d');
+  g.fillStyle='#d8d8d0'; g.beginPath(); g.arc(32,32,30,0,TAU); g.fill();
+  const rnd2=mulberry32(7);
+  for(let k=0;k<16;k++){ g.fillStyle=`rgba(100,100,95,${0.2+rnd2()*0.3})`;
+    g.beginPath(); g.arc(14+rnd2()*36,14+rnd2()*36,2+rnd2()*6,0,TAU); g.fill(); }
+  return c; })();
+function drawFisheye(){
+  const dpr=Math.min(devicePixelRatio,2);
+  const W=innerWidth,H=innerHeight;
+  if(asCanvas.width!==Math.floor(W*dpr)){ asCanvas.width=Math.floor(W*dpr); asCanvas.height=Math.floor(H*dpr); }
+  ag.setTransform(dpr,0,0,dpr,0,0);
+  const cx=W/2, cy=H/2, R=Math.min(W,H)/2-34;
+  // Apply touch zoom/pan
+  const zoom=fisheyeZoom||1, panX=fisheyePanX||0, panY=fisheyePanY||0;
+  ag.save();
+  if(zoom!==1||panX!==0||panY!==0){
+    ag.translate(cx+panX,cy+panY);
+    ag.scale(zoom,zoom);
+    ag.translate(-cx,-cy);
+  }
+  const date=new Date(simTime);
+  const lst=getLST(date);
+  const [sra,sdec]=sunRADec(date);
+  const [salt,saz]=altAz(sra,sdec,lst);
+  const day=THREE.MathUtils.smoothstep(salt/RAD,-8,6);
+  const starFade=1-day*0.97;
+  const k=R/420;
+  ag.fillStyle='#04060d'; ag.fillRect(0,0,W,H);
+  function P(alt,az){ const r=(Math.PI/2-alt)/(Math.PI/2)*R; return [cx-r*Math.sin(az), cy-r*Math.cos(az), r]; }
+  const grd=ag.createRadialGradient(cx,cy,0,cx,cy,R);
+  grd.addColorStop(0,mixC([7,11,24],[64,116,196],day));
+  grd.addColorStop(0.75,mixC([12,17,34],[96,142,208],day));
+  grd.addColorStop(1,mixC([26,34,56],[158,184,222],day));
+  ag.beginPath(); ag.arc(cx,cy,R,0,TAU); ag.fillStyle=grd; ag.fill();
+  ag.save();
+  ag.beginPath(); ag.arc(cx,cy,R,0,TAU); ag.clip();
+  if(fsShow.mw){
+    const vecs=MW_BAND.map(([h,d])=>eqToVec(h,d,1).normalize());
+    ag.globalAlpha=0.05*(1-day*0.95);
+    for(let i=0;i<vecs.length;i++){
+      const a=vecs[i], b=vecs[(i+1)%vecs.length];
+      for(let s=0;s<4;s++){
+        const v=a.clone().lerp(b,s/4).normalize();
+        const ra=((Math.atan2(v.x,v.z)/RAD)/15+24)%24, dec=Math.asin(THREE.MathUtils.clamp(v.y,-1,1))/RAD;
+        const [alt,az]=altAz(ra,dec,lst);
+        if(alt<-0.1) continue;
+        const [x,y]=P(alt,az);
+        const bg=ag.createRadialGradient(x,y,0,x,y,R*0.17);
+        bg.addColorStop(0,'rgba(190,205,235,1)'); bg.addColorStop(1,'rgba(190,205,235,0)');
+        ag.fillStyle=bg; ag.beginPath(); ag.arc(x,y,R*0.17,0,TAU); ag.fill();
+      }
+    }
+    ag.globalAlpha=1;
+  }
+  if(fsShow.ecl){
+    ag.strokeStyle=`rgba(255,200,90,${0.5*(1-day*0.7)})`; ag.setLineDash([6,6]); ag.lineWidth=1.2;
+    ag.beginPath(); let started=false;
+    const eps=23.439*RAD;
+    for(let l=0;l<=360;l+=5){
+      const lr=l*RAD;
+      const ra=Math.atan2(Math.cos(eps)*Math.sin(lr),Math.cos(lr));
+      const dec=Math.asin(Math.sin(eps)*Math.sin(lr));
+      const [alt,az]=altAz(((ra/RAD)/15+24)%24,dec/RAD,lst);
+      const [x,y,r]=P(alt,az);
+      if(r>R*1.4){ started=false; continue; }
+      if(!started){ ag.moveTo(x,y); started=true; } else ag.lineTo(x,y);
+    }
+    ag.stroke(); ag.setLineDash([]);
+  }
+  if(fsShow.grid){
+    ag.strokeStyle='rgba(120,150,200,0.22)'; ag.lineWidth=1;
+    for(const a of [30,60]){ ag.beginPath(); ag.arc(cx,cy,R*(1-a/90),0,TAU); ag.stroke(); }
+    for(let azd=0;azd<360;azd+=45){
+      const az=azd*RAD;
+      ag.beginPath(); ag.moveTo(cx,cy); ag.lineTo(cx-R*Math.sin(az),cy-R*Math.cos(az)); ag.stroke();
+    }
+  }
+  if(fsShow.lines){
+    ag.strokeStyle=`rgba(110,140,220,${0.55*(1-day*0.9)})`; ag.lineWidth=1.1;
+    for(const [,pairs] of CONSTS){
+      for(const [an,bn] of pairs){
+        const A=starMap[an],B=starMap[bn]; if(!A||!B) continue;
+        const [aAlt,aAz]=altAz(A[1],A[2],lst);
+        const [bAlt,bAz]=altAz(B[1],B[2],lst);
+        const pa=P(aAlt,aAz), pb=P(bAlt,bAz);
+        if(pa[2]>R*1.5&&pb[2]>R*1.5) continue;
+        ag.beginPath(); ag.moveTo(pa[0],pa[1]); ag.lineTo(pb[0],pb[1]); ag.stroke();
+      }
+    }
+  }
+  if(fsShow.names){
+    ag.fillStyle=`rgba(170,190,240,${0.6*(1-day*0.9)})`; ag.font='italic 11px Segoe UI'; ag.textAlign='center';
+    for(const [name,pairs] of CONSTS){
+      let sx=0,sy=0,n=0; const seen={};
+      for(const [an,bn] of pairs) for(const sn of [an,bn]){ if(seen[sn])continue; seen[sn]=1;
+        const S=starMap[sn]; if(!S)continue;
+        const [alt,az]=altAz(S[1],S[2],lst);
+        if(alt<0) continue;
+        const [x,y]=P(alt,az); sx+=x; sy+=y; n++;
+      }
+      if(n>=2) ag.fillText(name.toUpperCase(),sx/n,sy/n+4);
+    }
+    ag.textAlign='left';
+  }
+  for(const o of DSO){
+    const [alt,az]=altAz(o[1],o[2],lst);
+    if(alt<-0.05) continue;
+    const [x,y,r]=P(alt,az); if(r>R+12) continue;
+    const s=Math.max(4,(9-o[3])*1.1)*k*0.9;
+    ag.globalAlpha=(1-day*0.96);
+    if(o[4]==='G'){ ag.strokeStyle='rgba(190,160,255,0.9)'; ag.beginPath(); ag.ellipse(x,y,s,s*0.45,0.6,0,TAU); ag.stroke(); }
+    else if(o[4]==='O'){ ag.strokeStyle='rgba(140,235,170,0.9)'; ag.setLineDash([2,2]); ag.beginPath(); ag.arc(x,y,s,0,TAU); ag.stroke(); ag.setLineDash([]); }
+    else if(o[4]==='GC'){ ag.strokeStyle='rgba(255,190,110,0.9)'; ag.beginPath(); ag.arc(x,y,s*0.8,0,TAU); ag.stroke();
+      ag.beginPath(); ag.moveTo(x-s,y); ag.lineTo(x+s,y); ag.moveTo(x,y-s); ag.lineTo(x,y+s); ag.stroke(); }
+    else if(o[4]==='PN'){ ag.strokeStyle='rgba(140,240,230,0.9)'; ag.beginPath(); ag.arc(x,y,s*0.6,0,TAU); ag.stroke(); }
+    else { ag.strokeStyle='rgba(255,120,130,0.9)'; ag.strokeRect(x-s*0.8,y-s*0.6,s*1.6,s*1.2); }
+    if(o[3]<5.5){ ag.fillStyle='rgba(215,225,255,0.75)'; ag.font='10px Segoe UI'; ag.fillText(o[0],x+s+3,y+3); }
+    ag.globalAlpha=1;
+  }
+  SKY_PL.forEach(p=>{
+    const [pra,pdec]=planetGeoRadec(date,p);
+    const [alt,az]=altAz(pra,pdec,lst);
+    if(alt<-0.03) return;
+    const [x,y,r]=P(alt,az); if(r>R+8) return;
+    ag.globalAlpha=1-day*0.9;
+    const pg=ag.createRadialGradient(x,y,0,x,y,6*k+2);
+    pg.addColorStop(0,'#ffffff'); pg.addColorStop(0.4,p.col); pg.addColorStop(1,'rgba(0,0,0,0)');
+    ag.fillStyle=pg; ag.beginPath(); ag.arc(x,y,6*k+2,0,TAU); ag.fill();
+    if(fsShow.names){ ag.fillStyle='rgba(230,238,255,0.9)'; ag.font='10px Segoe UI'; ag.fillText(p.name,x+7,y-5); }
+    ag.globalAlpha=1;
+  });
+  // Draw procedural background stars
+  for(let i=0;i<BG_STAR_COUNT;i++){
+    const ra=bgStarData[i*4], dec=bgStarData[i*4+1], mag=bgStarData[i*4+2], bv=bgStarData[i*4+3];
+    const [alt,az]=altAz(ra,dec,lst);
+    if(alt<-0.03) continue;
+    const [x,y,r]=P(alt,az); if(r>R+6) continue;
+    const sz=Math.max(0.4,(4.5-mag)*0.65)*Math.max(0.7,k);
+    const c=tempRGB(bvTemp(bv));
+    ag.globalAlpha=starFade*0.85;
+    ag.fillStyle=`rgb(${c[0]},${c[1]},${c[2]})`;
+    ag.beginPath(); ag.arc(x,y,sz,0,TAU); ag.fill();
+    ag.globalAlpha=1;
+  }
+  // Draw named catalog stars
+  for(let i=0;i<STARS.length;i++){
+    const s=STARS[i];
+    const [alt,az]=altAz(s[1],s[2],lst);
+    if(alt<-0.03) continue;
+    const [x,y,r]=P(alt,az); if(r>R+6) continue;
+    const sz=Math.max(0.8,(4.5-s[3])*0.95)*Math.max(0.8,k);
+    const c=starCols.length>i?starCols[i]:tempRGB(bvTemp(s[4]));
+    ag.globalAlpha=starFade;
+    ag.fillStyle=`rgb(${c[0]},${c[1]},${c[2]})`;
+    ag.beginPath(); ag.arc(x,y,sz,0,TAU); ag.fill();
+    if(s[3]<1.2){ ag.fillStyle=`rgba(${c[0]},${c[1]},${c[2]},0.25)`; ag.beginPath(); ag.arc(x,y,sz*2.1,0,TAU); ag.fill(); }
+    if(fsShow.names&&s[3]<1.3){ ag.fillStyle='rgba(230,238,255,0.85)'; ag.font='10px Segoe UI'; ag.fillText(s[0],x+sz+3,y-3); }
+    ag.globalAlpha=1;
+  }
+  const [mra,mdec]=moonRADec(date);
+  const [malt,maz]=altAz(mra,mdec,lst);
+  if(malt>-0.03){ const [x,y]=P(malt,maz);
+    const ms=Math.max(7,14*k);
+    ag.drawImage(moonDisc,x-ms,y-ms,ms*2,ms*2);
+  }
+  if(salt>-0.1){ const [x,y]=P(salt,saz);
+    const gg=ag.createRadialGradient(x,y,0,x,y,R*0.22);
+    gg.addColorStop(0,'rgba(255,250,230,0.95)'); gg.addColorStop(0.25,'rgba(255,225,140,0.5)'); gg.addColorStop(1,'rgba(255,200,100,0)');
+    ag.fillStyle=gg; ag.beginPath(); ag.arc(x,y,R*0.22,0,TAU); ag.fill();
+    ag.fillStyle='#fff8e0'; ag.beginPath(); ag.arc(x,y,Math.max(6,9*k),0,TAU); ag.fill();
+  }
+  ag.restore();
+  ag.strokeStyle='rgba(140,180,230,0.8)'; ag.lineWidth=2;
+  ag.beginPath(); ag.arc(cx,cy,R,0,TAU); ag.stroke();
+  ag.strokeStyle='rgba(140,180,230,0.25)'; ag.lineWidth=1;
+  ag.beginPath(); ag.arc(cx,cy,R+8,0,TAU); ag.stroke();
+  ag.fillStyle='#dfe6f5'; ag.font='700 15px Segoe UI'; ag.textAlign='center'; ag.textBaseline='middle';
+  [['N',0],['E',90],['S',180],['O',270]].forEach(([t,azd])=>{
+    const az=azd*RAD;
+    ag.fillText(t,cx-(R+22)*Math.sin(az),cy-(R+22)*Math.cos(az));
+  });
+  ag.font='600 10px Segoe UI'; ag.fillStyle='rgba(160,180,220,0.7)';
+  for(let azd=45;azd<360;azd+=90){ const az=azd*RAD;
+    const lbl=azd===45?'NE':azd===135?'SE':azd===225?'SO':'NO';
+    ag.fillText(lbl,cx-(R+20)*Math.sin(az),cy-(R+20)*Math.cos(az)); }
+  ag.textBaseline='alphabetic'; ag.textAlign='left';
+  ag.strokeStyle='rgba(160,190,240,0.5)'; ag.lineWidth=1;
+  ag.beginPath(); ag.moveTo(cx-6,cy); ag.lineTo(cx+6,cy); ag.moveTo(cx,cy-6); ag.lineTo(cx,cy+6); ag.stroke();
+  const isSkyMap=(viewMode==='skymap');
+  ag.fillStyle='rgba(160,180,220,0.75)'; ag.font='11px Segoe UI';
+  ag.fillText(`SkyMap — ${userLat.toFixed(1)}°N ${userLon.toFixed(1)}°E · étoiles + NGC/IC + planètes · Touchez pour identifier · Molette pour zoomer · 🔍 Recherche`, 12, H-14);
+  ag.fillText(date.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'})+' — '+date.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}), 12, 22);
+  ag.restore(); // restore zoom/pan transform
+}
+function fisheyePick(mx,my){
+  const date=new Date(simTime); const lst=getLST(date);
+  const cx=innerWidth/2, cy=innerHeight/2, R=Math.min(innerWidth,innerHeight)/2-34;
+  // Reverse zoom/pan transform for pick accuracy
+  const zoom=fisheyeZoom||1, panX=fisheyePanX||0, panY=fisheyePanY||0;
+  const ux=(mx-panX-cx*(1-zoom))/zoom, uy=(my-panY-cy*(1-zoom))/zoom;
+  let best=null,bd=15;
+  function tryPt(alt,az,obj){ if(alt<-0.03) return;
+    const r=(Math.PI/2-alt)/(Math.PI/2)*R;
+    if(r>R+8) return;
+    const x=cx-r*Math.sin(az), y=cy-r*Math.cos(az);
+    const d=Math.hypot(x-ux,y-uy);
+    if(d<bd){ bd=d; best=obj; } }
+  for(const s of STARS){ const [alt,az]=altAz(s[1],s[2],lst); tryPt(alt,az,{kind:'star',s}); }
+  for(const o of DSO){ const [alt,az]=altAz(o[1],o[2],lst); tryPt(alt,az,{kind:'dso',o}); }
+  SKY_PL.forEach(p=>{ const [pra,pdec]=planetGeoRadec(date,p); const [alt,az]=altAz(pra,pdec,lst); tryPt(alt,az,{kind:'pl',p,pra,pdec}); });
+  return best;
+}
+const tip=document.getElementById('tip');
+const objInfo=document.getElementById('objInfo');
+function fillInfo(pk){
+  let html='';
+  if(pk.kind==='dso'){ const o=pk.o;
+    html=`<div style="font-size:14.5px;font-weight:700">${o[0]}${o[5]?' — '+o[5]:''}</div>
+    <div class="note" style="color:#cfd9f0">${TYPE_FR[o[4]]} · mag ${o[3].toFixed(1)}</div>
+    <div class="note" style="color:#9fd0ff;font-variant-numeric:tabular-nums">AD ${fmtRA(o[1])} · Déc ${fmtDec(o[2])}</div>`;
+  } else if(pk.kind==='star'){ const s=pk.s;
+    html=`<div style="font-size:14.5px;font-weight:700">⭐ ${s[0]}</div>
+    <div class="note" style="color:#cfd9f0">mag ${s[3].toFixed(2)} · B−V ${s[4].toFixed(2)} · T≈${Math.round(bvTemp(s[4]))} K</div>
+    <div class="note" style="color:#9fd0ff;font-variant-numeric:tabular-nums">AD ${fmtRA(s[1])} · Déc ${fmtDec(s[2])}</div>`;
+  } else if(pk.kind==='pl'){
+    html=`<div style="font-size:14.5px;font-weight:700">🪐 ${pk.p.name}</div>
+    <div class="note" style="color:#9fd0ff;font-variant-numeric:tabular-nums">AD ${fmtRA(pk.pra)} · Déc ${fmtDec(pk.pdec)}</div>`;
+  }
+  html+=`<div style="margin-top:8px"><button class="chip" id="btnCloseInfo">✖ Fermer</button></div>`;
+  objInfo.innerHTML=html;
+  document.getElementById('btnCloseInfo').onclick=()=>{ objInfo.style.display='none'; };
+  objInfo.style.display='block';
+}
+asCanvas.addEventListener('pointermove',e=>{
+  if(viewMode!=='skymap') return;
+  const pk=fisheyePick(e.clientX,e.clientY);
+  if(pk){
+    let lbl='';
+    if(pk.kind==='star') lbl=`<b>⭐ ${pk.s[0]}</b><br>mag ${pk.s[3].toFixed(2)}<br>AD ${fmtRA(pk.s[1])} · Déc ${fmtDec(pk.s[2])}`;
+    else if(pk.kind==='dso') lbl=`<b>${pk.o[0]}${pk.o[5]?' — '+pk.o[5]:''}</b><br>${TYPE_FR[pk.o[4]]} · mag ${pk.o[3].toFixed(1)}<br>AD ${fmtRA(pk.o[1])} · Déc ${fmtDec(pk.o[2])}`;
+    else lbl=`<b>🪐 ${pk.p.name}</b><br>AD ${fmtRA(pk.pra)} · Déc ${fmtDec(pk.pdec)}`;
+    tip.innerHTML=lbl; tip.style.display='block';
+    tip.style.left=Math.min(innerWidth-230,e.clientX+14)+'px';
+    tip.style.top=Math.min(innerHeight-90,e.clientY+14)+'px';
+    asCanvas.style.cursor='pointer';
+  } else { tip.style.display='none'; asCanvas.style.cursor='default'; }
+});
+asCanvas.addEventListener('click',e=>{
+  if(viewMode!=='skymap') return;
+  const pk=fisheyePick(e.clientX,e.clientY);
+  if(pk) fillInfo(pk); else objInfo.style.display='none';
+});
+[['fs-lines','lines'],['fs-names','names'],['fs-grid','grid'],['fs-mw','mw'],['fs-ecl','ecl']].forEach(([id,key])=>{
+  document.getElementById(id).addEventListener('click',e=>{ fsShow[key]=!fsShow[key]; e.target.classList.toggle('on',fsShow[key]); });
+});
+
+/* =========================================================
+   📱 TOUCH GESTURES FOR FISHEYE (phone adaptation)
+   ========================================================= */
+let touchStartDist=0, touchStartZoom=1, touchPanX=0, touchPanY=0;
+let fisheyeZoom=1, fisheyePanX=0, fisheyePanY=0;
+let touchStartX=0, touchStartY=0, isTouchPanning=false;
+const origDrawFisheye=drawFisheye;
+asCanvas.addEventListener('touchstart',e=>{
+  if(viewMode!=='skymap') return;
+  if(e.touches.length===2){
+    e.preventDefault();
+    const dx=e.touches[0].clientX-e.touches[1].clientX;
+    const dy=e.touches[0].clientY-e.touches[1].clientY;
+    touchStartDist=Math.hypot(dx,dy);
+    touchStartZoom=fisheyeZoom;
+  } else if(e.touches.length===1){
+    touchStartX=e.touches[0].clientX-fisheyePanX;
+    touchStartY=e.touches[0].clientY-fisheyePanY;
+    isTouchPanning=false;
+  }
+},{passive:false});
+asCanvas.addEventListener('touchmove',e=>{
+  if(viewMode!=='skymap') return;
+  if(e.touches.length===2){
+    e.preventDefault();
+    const dx=e.touches[0].clientX-e.touches[1].clientX;
+    const dy=e.touches[0].clientY-e.touches[1].clientY;
+    const dist=Math.hypot(dx,dy);
+    fisheyeZoom=Math.max(0.5,Math.min(3,touchStartZoom*(dist/touchStartDist)));
+  } else if(e.touches.length===1){
+    const dx=e.touches[0].clientX-touchStartX;
+    const dy=e.touches[0].clientY-touchStartY;
+    if(Math.hypot(dx,dy)>8) isTouchPanning=true;
+    if(isTouchPanning){
+      fisheyePanX=dx; fisheyePanY=dy;
+    }
+  }
+},{passive:false});
+asCanvas.addEventListener('touchend',e=>{
+  if(viewMode!=='skymap') return;
+  if(e.touches.length===0){
+    if(!isTouchPanning && e.changedTouches.length===1){
+      // It was a tap — handle like click
+      const t=e.changedTouches[0];
+      const pk=fisheyePick(t.clientX,t.clientY);
+      if(pk) fillInfo(pk); else objInfo.style.display='none';
+    }
+    // Slowly reset pan/zoom
+    const resetPanZoom=()=>{
+      if(Math.abs(fisheyePanX)<1&&Math.abs(fisheyePanY)<1&&Math.abs(fisheyeZoom-1)<0.01){
+        fisheyePanX=0;fisheyePanY=0;fisheyeZoom=1;return;
+      }
+      fisheyePanX*=0.85; fisheyePanY*=0.85; fisheyeZoom+=(1-fisheyeZoom)*0.12;
+      requestAnimationFrame(resetPanZoom);
+    };
+    resetPanZoom();
+  }
+});
+
+/* =========================================================
+   🧭 GYROSCOPE / COMPASS SUPPORT (phone pointing at sky)
+   ========================================================= */
+let gyroEnabled=false, gyroAlpha=0, gyroBeta=0, gyroGamma=0;
+const orientInd=document.getElementById('orientInd');
+function enableGyro(){
+  if(typeof DeviceOrientationEvent!=='undefined' && typeof DeviceOrientationEvent.requestPermission==='function'){
+    DeviceOrientationEvent.requestPermission().then(r=>{
+      if(r==='granted') startGyro();
+    }).catch(()=>{});
+  } else if('DeviceOrientationEvent' in window){
+    startGyro();
+  }
+}
+function startGyro(){
+  gyroEnabled=true;
+  orientInd.style.display='block';
+  window.addEventListener('deviceorientation',e=>{
+    gyroAlpha=e.alpha||0; gyroBeta=e.beta||0; gyroGamma=e.gamma||0;
+  });
+  // Auto-hide indicator after 5 seconds
+  setTimeout(()=>{ orientInd.style.display='none'; },5000);
+}
+
+/* =========================================================
+   🌙 NIGHT MODE (red filter for astronomy)
+   ========================================================= */
+const nightBtn=document.getElementById('nightBtn');
+let nightMode=false;
+nightBtn.addEventListener('click',()=>{
+  nightMode=!nightMode;
+  document.body.classList.toggle('night-mode',nightMode);
+  nightBtn.textContent=nightMode?'☀️ Jour':'🌙 Nuit';
+  nightBtn.classList.toggle('on',nightMode);
+});
+
+/* =========================================================
+   🔍 SEARCH FUNCTIONALITY
+   ========================================================= */
+const searchPanel=document.getElementById('searchPanel');
+const searchInput=document.getElementById('searchInput');
+const searchResults=document.getElementById('searchResults');
+function doSearch(q){
+  q=q.trim().toLowerCase();
+  if(!q){searchResults.innerHTML='';return;}
+  const results=[];
+  // Search stars
+  for(const s of STARS){
+    if(s[0].toLowerCase().includes(q)){
+      results.push({type:'⭐',name:s[0],detail:`mag ${s[3].toFixed(2)} · AD ${fmtRA(s[1])}`,data:{kind:'star',s}});
+    }
+  }
+  // Search DSOs
+  for(const o of DSO){
+    const nameMatch=o[0].toLowerCase().includes(q);
+    const descMatch=o[5]&&o[5].toLowerCase().includes(q);
+    if(nameMatch||descMatch){
+      results.push({type:o[4]==='G'?'🌀':o[4]==='O'?'💨':o[4]==='GC'?'⚽':o[4]==='N'?'☁️':'🔵',
+        name:o[0],detail:(o[5]||TYPE_FR[o[4]])+` · mag ${o[3].toFixed(1)}`,data:{kind:'dso',o}});
+    }
+  }
+  // Search planets
+  for(const p of SKY_PL){
+    if(p.name.toLowerCase().includes(q)){
+      const date=new Date(simTime); const [pra,pdec]=planetGeoRadec(date,p);
+      results.push({type:'🪐',name:p.name,detail:`AD ${fmtRA(pra)} · Déc ${fmtDec(pdec)}`,data:{kind:'pl',p,pra,pdec}});
+    }
+  }
+  // Search constellations
+  for(const [cname] of CONSTS){
+    if(cname.toLowerCase().includes(q)){
+      results.push({type:'✨',name:cname,detail:'Constellation',data:null});
+    }
+  }
+  results.sort((a,b)=>a.name.localeCompare(b.name));
+  const html=results.slice(0,20).map((r,i)=>
+    `<div class="search-item" data-idx="${i}"><span>${r.type} ${r.name}</span><span class="si-type">${r.detail}</span></div>`
+  ).join('');
+  searchResults.innerHTML=html||'<div style="padding:8px;color:#7787a8;font-size:11px">Aucun résultat</div>';
+  // Click handlers
+  searchResults.querySelectorAll('.search-item').forEach((el,i)=>{
+    el.addEventListener('click',()=>{
+      const r=results[i];
+      if(r.data){
+        if(viewMode!=='skymap') setView('skymap');
+        fillInfo(r.data);
+        // Pan to the object position
+        const date=new Date(simTime); const lst=getLST(date);
+        let alt,az;
+        if(r.data.kind==='star'){ [alt,az]=altAz(r.data.s[1],r.data.s[2],lst); }
+        else if(r.data.kind==='dso'){ [alt,az]=altAz(r.data.o[1],r.data.o[2],lst); }
+        else if(r.data.kind==='pl'){ [alt,az]=altAz(r.data.pra,r.data.pdec,lst); }
+        if(alt!==undefined && alt>0){
+          const W=innerWidth, H=innerHeight, R=Math.min(W,H)/2-34;
+          const targetX=W/2-(Math.PI/2-alt)/(Math.PI/2)*R*Math.sin(az);
+          const targetY=H/2-(Math.PI/2-alt)/(Math.PI/2)*R*Math.cos(az);
+          // Animate pan
+          const startPX=fisheyePanX, startPY=fisheyePanY;
+          const goalPX=W/2-targetX, goalPY=H/2-targetY;
+          const panAnim=(t)=>{
+            const k=t*t*(3-2*t);
+            fisheyePanX=startPX+(goalPX-startPX)*k;
+            fisheyePanY=startPY+(goalPY-startPY)*k;
+            if(t<1) requestAnimationFrame(()=>panAnim(t+0.03));
+          };
+          panAnim(0);
+        }
+      }
+      searchPanel.style.display='block';
+    });
+  });
+}
+searchInput.addEventListener('input',e=>doSearch(e.target.value));
+searchInput.addEventListener('keydown',e=>{
+  if(e.key==='Escape'){searchInput.value='';searchResults.innerHTML='';searchPanel.style.display='none';}
+});
+
+/* =========================================================
+   🖱️ SCROLL WHEEL ZOOM for SkyMap
+   ========================================================= */
+asCanvas.addEventListener('wheel',e=>{
+  if(viewMode!=='skymap') return;
+  e.preventDefault();
+  const delta=e.deltaY>0?-0.12:0.12;
+  fisheyeZoom=Math.max(0.4,Math.min(4,fisheyeZoom+delta));
+},{passive:false});
+
+/* =========================================================
+   🧭 ORIENTATION BUTTON (in fisheye tools)
+   ========================================================= */
+const orientBtn=document.createElement('button');
+orientBtn.className='chip'; orientBtn.textContent='🧭'; orientBtn.title='Activer la boussole (téléphone)';
+orientBtn.addEventListener('click',enableGyro);
+document.getElementById('fisheyeTools').appendChild(orientBtn);
+
+/* ================= UI & VUES ================= */
+/* --- masquer / afficher le panneau flottant --- */
+(function(){
+  const uiEl=document.getElementById('ui');
+  const tg=document.getElementById('uiToggle');
+  let uiHidden=false;
+  function setUI(h){ uiHidden=h; uiEl.classList.toggle('hidden',h);
+    tg.textContent=h?'☰ Menu':'✖ Masquer'; }
+  setUI(false);
+  tg.addEventListener('click',()=>setUI(!uiHidden));
+  window.addEventListener('keydown',e=>{
+    if(e.key==='h'||e.key==='H'){ const a=document.activeElement;
+      if(a && (a.tagName==='INPUT'||a.tagName==='TEXTAREA')) return;
+      setUI(!uiHidden); } });
+})();
+const speedSl=document.getElementById('speed');
+const speedVal=document.getElementById('speedVal');
+speedSl.addEventListener('input',()=>{ simSpeed=parseFloat(speedSl.value); speedVal.textContent=simSpeed.toFixed(1)+'×'; });
+document.getElementById('sunlight').addEventListener('input',e=>{ sunFactor=parseFloat(e.target.value)/100;
+  document.getElementById('sunVal').textContent=Math.round(sunFactor*100)+'%'; });
+document.getElementById('moonspd').addEventListener('input',e=>{ moonSpeedMult=parseFloat(e.target.value);
+  document.getElementById('moonVal').textContent='×'+moonSpeedMult; });
+const earthHud=document.getElementById('earthHud');
+const dayCountEl=document.getElementById('dayCount');
+const lunCountEl=document.getElementById('lunCount');
+const fisheyeTools=document.getElementById('fisheyeTools');
+const timePanel=document.getElementById('timePanel');
+const timeTxt=document.getElementById('timeTxt');
+const skyInfo=document.getElementById('skyInfo');
+const tourPanel=document.getElementById('tourPanel');
+const VIEW_IDS=['galaxy','system','earth','bh','m13','cluster','skymap'];
+let viewMode='galaxy',flight=null,simTime=Date.now();
+let tourIdx=-1,tourTimer=0,touring=false;
+const TMP=new THREE.Vector3(),TMP2=new THREE.Vector3(),TMP3=new THREE.Vector3(),FW=new THREE.Vector3();
+const SYS_OFFSET=new THREE.Vector3(130,75,165);
+const EARTH_OFFSET=new THREE.Vector3(9,4.5,11);
+const easeIO=t=>t<0.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2;
+function flyTo(opts){ flight=Object.assign({el:0,dur:2.6,p0:null,t0:null},opts); controls.enabled=false; }
+function setView(v){
+  viewMode=v;
+  flight=null;
+  VIEW_IDS.forEach(id=>document.getElementById('btn-'+id).classList.toggle('active',id===v));
+  const skyMode=(v==='skymap');
+  earthHud.style.display=v==='earth'?'block':'none';
+  asCanvas.style.display=skyMode?'block':'none';
+  fisheyeTools.style.display=skyMode?'block':'none';
+  timePanel.style.display=skyMode?'block':'none';
+  document.getElementById('searchPanel').style.display=skyMode?'block':'none';
+  document.getElementById('nightBtn').style.display=skyMode?'block':'none';
+  if(!skyMode){ tip.style.display='none'; objInfo.style.display='none'; document.getElementById('searchPanel').style.display='none'; document.getElementById('nightBtn').style.display='none'; }
+  if(skyMode){ controls.enabled=false; simTime=Date.now(); document.getElementById('skyInfo').textContent=`SkyMap : ${userLat.toFixed(1)}°N ${userLon.toFixed(1)}°E. Touchez les objets. Recherchez 🔍. Molette/pincez pour zoomer.`; return; }
+  camera.fov=55; camera.updateProjectionMatrix();
+  if(v==='galaxy'){ controls.minDistance=8; flyTo({dur:3,getP1:()=>GAL_VIEW_POS.clone(),getT1:()=>new THREE.Vector3()}); }
+  else if(v==='system'){ controls.minDistance=8; flyTo({dur:3,getP1:()=>SOLAR_POS.clone().add(SYS_OFFSET),getT1:()=>SOLAR_POS.clone()}); }
+  else if(v==='earth'){ controls.minDistance=2.4;
+    flyTo({dur:2.8,getP1:()=>{earthAnchor.getWorldPosition(TMP); return TMP.clone().add(EARTH_OFFSET);},getT1:()=>{earthAnchor.getWorldPosition(TMP); return TMP.clone();}}); }
+  else if(v==='bh'){ controls.minDistance=15; flyTo({dur:3.2,getP1:()=>BH2_POS.clone().add(new THREE.Vector3(120,45,120)),getT1:()=>BH2_POS.clone()}); }
+  else if(v==='m13'){ controls.minDistance=1.5;
+    flyTo({dur:3.5,getP1:()=>M13_POS.clone().add(new THREE.Vector3(18,8,18)),getT1:()=>M13_POS.clone()}); }
+  else if(v==='cluster'){ controls.minDistance=8;
+    const C=clusters[0].center;
+    flyTo({dur:3.4,getP1:()=>C.clone().add(C.clone().normalize().multiplyScalar(-3200)).add(new THREE.Vector3(0,700,0)),getT1:()=>C.clone()}); }
+}
+
+/* 🎬 Visite guidée */
+const TOUR=[
+ {view:'galaxy',cap:"🌌 Notre Galaxie — La Voie Lactée : spirale barrée contenant 100 à 400 milliards d'étoiles, s'étendant sur 100 000 années-lumière. Découverte par Galilée en 1610 quand il observa que la « Voie Lactée » se résolvait en étoiles individuelles. Notre Soleil se trouve dans un bras secondaire ( bras d'Orion), à 26 000 al du centre. Le disque galactique tourne à ~220 km/s autour du centre — nous nous déplaçons plus vite que le son à chaque seconde.",dur:14},
+ {pos:()=>new THREE.Vector3(0,140,300),tgt:()=>new THREE.Vector3(0,0,0),cap:"🕳️ Sagittarius A* : trou noir supermassif de 4 millions de masses solaires, photographié pour la première fois en avril 2019 par le réseau Event Horizon Telescope (EHT). Son ombre gravitationnelle fait 52 millions de km de diamètre — plus grande que l'orbite de Mercure. La matière spirale à 30% de la vitesse de la lumière. Découverte radio du radiotélescope de probes en 1974 par Balick & Brown.",dur:14},
+ {view:'system',cap:"🚀 Le Système Solaire : notre demeure cosmique, formée il y a 4,6 milliards d'années à partir d'une nébuleuse protosolaire. Le Soleil contient 99,86% de la masse totale du système. Les 8 planètes se divisent en telluriques (Mercure, Vénus, Terre, Mars) et gazeuses (Jupiter, Saturne, Uranus, Neptune). La ceinture d'astéroïdes entre Mars et Jupiter contient plus de 1,1 million d'objets catalogués.",dur:12},
+ {pos:()=>SOLAR_POS.clone().add(new THREE.Vector3(0,540,1000)),tgt:()=>SOLAR_POS.clone(),cap:"☄️ Les Confins du Système Solaire : la ceinture de Kuiper s'étend de 30 à 50 UA (Pluton en fait partie). L'héliopause à ~120 UA marque la frontière avec le milieu interstellaire — la sonde Voyager 1 l'a franchie en 2012, devenant le premier objet fabriqué par l'humanité à atteindre l'espace interstellaire. Le nuage d'Oort hypothétique s'étendrait jusqu'à 100 000 UA (1,5 al), réservoir de comètes à longue période comme C/2020 F3 NEOWISE.",dur:14},
+ {view:'earth',cap:"🌍 Terre & Lune : notre planète bleue, unique (pour l'instant) connue pour abriter la vie. La Lune, formée par l'impact d'une protoplanète (Théia) il y a 4,5 Ga, stabilise l'axe terrestre et crée les marées. Les lumières des villes visibles la nuit montrent 68% de la population mondiale. L'atmosphère terrestre, vue de l'espace, est une fine pellicule de 100 km — moins qu'une orange. La Lune s'éloigne de 3,8 cm par an.",dur:14},
+ {view:'system',getP1:()=>{planets[4].anchor.getWorldPosition(TMP); return TMP.clone().add(new THREE.Vector3(16,7,18));},getT1:()=>{planets[4].anchor.getWorldPosition(TMP); return TMP.clone();},cap:"🪐 Jupiter : géante gazeuse de 318 masses terrestres. Sa Grande Tache Rouge est un anticyclone de 16 000 km de large, actif depuis au moins 350 ans. Découverte de ses 4 lunes galiléennes (Io, Europe, Ganymède, Callisto) par Galilée en 1610 — preuve que tout ne tourne pas autour de la Terre, révolution copernicienne. Europe abrite potentiellement un océan liquide sous sa croûte de glace.",dur:12},
+ {view:'system',getP1:()=>{planets[5].anchor.getWorldPosition(TMP); return TMP.clone().add(new THREE.Vector3(20,9,24));},getT1:()=>{planets[5].anchor.getWorldPosition(TMP); return TMP.clone();},cap:"💫 Saturne : ses anneaux de glace et de roche s'étendent sur 282 000 km mais ne font que 10 m d'épaisseur. Si l'on avait un bassin d'eau assez grand pour y mettre Saturne, elle flotterait (densité < 1 g/cm³). Titan, sa plus grande lune, possède une atmosphère d'azote et des lacs de méthane liquide — le seul autre corps du système avec un cycle liquide stable. En 2024, la sonde Cassini-Huygens reste notre meilleure source de données.",dur:14},
+ {view:'bh',cap:"🕳️ Cygnus X-1 : trou noir stellaire de ~21 masses solaires, découvert en 1964 comme source de rayons X. Sa compagne bleue HDE 226868 orbite à 5,6 jours. La matière arrachée à l'étoile compagnon forme un disque d'accrétion chauffé à des millions de degrés — c'est cette émission en rayons X qui trahit le trou noir invisible. Le débat Hawking–Sagan de 1974 sur son existence fut le premier pari scientifique télévisé.",dur:12},
+ {view:'m13',cap:"🔭 M13 — Amas globulaire d'Hercules (NGC 6205) : ~300 000 étoiles compactées dans un diamètre de 145 al, âgé de ~11,6 milliards d'années — presque aussi vieux que l'Univers (13,8 Ga). En 1974, le message d'Arecibo (-message de 1 679 bits contenant info sur ADN,人类, notre système solaire) fut envoyé en direction de M13. Les amas globulaires sont les fossiles du formation galactique, formés quand la Galaxie était encore une proto-galaxie en fusion.",dur:14},
+ {view:'cluster',cap:"🔭 Amas de galaxies lointaines : ces méga-structures de 100 à 3000 galaxies liées par la gravité contiennent d'immenses quantités de matière noire (85% de la masse totale). Le gaz chaud intergalactique (10⁷–10⁸ K) émet des rayons X. L'amas le plus proche est celui de la Vierge (54 Ml). Les amas sont les plus grands objets gravitationnellement liés de l'Univers — cartographiés par le satellite Planck (ESA) et le巡天 SDSS.",dur:12},
+ {view:'skymap',night:true,cap:"🌠 SkyMap : planétarium interactif avec 700+ étoiles nommées, catalogues NGC/IC de 130 000 objets, positions planétaires en temps réel. Utilisez la molette pour zoomer, touchez pour identifier. Les constellations relient les étoiles depuis l'Antiquité — la plus ancienne représentation connue (Sumer, ~3000 av. J.-C.) inclut le Taureau, le Lion et Orion. Le ciel nocturne contient ~5 000 étoiles visibles à l'œil nu, mais on n'en voit que la moitié depuis un point donné.",dur:14}
+];
+function showTourStep(){
+  const st=TOUR[tourIdx]; tourTimer=st.dur||8;
+  if(st.view) setView(st.view);
+  if(st.night){ const d=new Date(); d.setHours(23,0,0,0); simTime=d.getTime(); }
+  if(st.pos||st.getP1){ flyTo({dur:2.8,getP1:st.getP1||(()=>st.pos()),getT1:st.getT1||(()=>st.tgt())}); }
+  document.getElementById('tourCap').textContent=st.cap;
+  document.getElementById('tourStep').textContent=`Étape ${tourIdx+1}/${TOUR.length}`;
+}
+function startTour(){ touring=true; tourIdx=-1; tourPanel.style.display='block'; nextTour(); }
+function nextTour(){ tourIdx++; if(tourIdx>=TOUR.length){ stopTour(); return; } showTourStep(); }
+function prevTour(){ tourIdx=Math.max(0,tourIdx-1); showTourStep(); }
+function stopTour(){ touring=false; tourPanel.style.display='none'; setView('galaxy'); }
+document.getElementById('btnTour').addEventListener('click',()=>{ touring?stopTour():startTour(); });
+document.getElementById('tourNext').addEventListener('click',nextTour);
+document.getElementById('tourPrev').addEventListener('click',prevTour);
+document.getElementById('tourStop').addEventListener('click',stopTour);
+document.getElementById('btnShot').addEventListener('click',()=>{ composer.render();
+  const a=document.createElement('a'); a.download='univers-profond.png'; a.href=renderer.domElement.toDataURL('image/png'); a.click(); });
+
+VIEW_IDS.forEach(id=>document.getElementById('btn-'+id).addEventListener('click',()=>{ if(touring){ touring=false; tourPanel.style.display='none'; } setView(id); }));
+
+document.getElementById('t-mh').addEventListener('click',()=>simTime-=3600e3);
+document.getElementById('t-ph').addEventListener('click',()=>simTime+=3600e3);
+document.getElementById('t-md').addEventListener('click',()=>simTime-=86400e3);
+document.getElementById('t-pd').addEventListener('click',()=>simTime+=86400e3);
+document.getElementById('t-night').addEventListener('click',()=>{ const d=new Date(); d.setHours(23,0,0,0); simTime=d.getTime(); });
+document.getElementById('t-now').addEventListener('click',()=>simTime=Date.now());
+
+function setLens(uVec,uR,worldPos,K){
+  camera.getWorldDirection(FW);
+  TMP3.copy(worldPos).sub(camera.position);
+  if(TMP3.dot(FW)<=0){ uVec.value.z=0; uR.value=0; return; }
+  const dist=TMP3.length();
+  TMP3.copy(worldPos).project(camera);
+  if(TMP3.z>1){ uVec.value.z=0; uR.value=0; return; }
+  uVec.value.set((TMP3.x+1)/2,(TMP3.y+1)/2,1);
+  /* Boost lensing radius: larger K = stronger distortion */
+  uR.value=Math.min(0.55,K/dist);
+}
+
+/* ================= BOUCLE ================= */
+/* Pre-collect all background materials for dimming near solar system */
+const _bgMats=[];
+function _collectMats(g){ if(!g) return; if(g.material && g.material.opacity!==undefined) _bgMats.push(g.material); if(g.children) for(const c of g.children) _collectMats(c); }
+for(const m of bgStarMats) _bgMats.push(m);
+_collectMats(bgDeepGroup); _collectMats(galaxyGroup);
+if(andr) _collectMats(andr);
+_collectMats(m13Group);
+for(const m of _bgMats) m._baseOp=m.opacity;
+
+/* ---- BIGGER, MORE VISIBLE OBJECT NAMES IN THE SOLAR SYSTEM ---- */
+(function(){
+  systemGroup.traverse(o=>{
+    if(o.isSprite && o.userData && o.userData.isLabel){
+      o.scale.multiplyScalar(LABEL_BOOST);
+      o.position.y*=1.12;
+      o.renderOrder=20;
+      if(o.material){ o.material.depthTest=false; o.material.opacity=1; }
+    }
+  });
+})();
+
+document.getElementById('loading').style.display='none';
+const clock=new THREE.Clock();
+let earthSpin=0,lunAcc=0;
+function tick(){
+  const dt=Math.min(clock.getDelta(),0.05);
+  const t=clock.elapsedTime;
+  /* main loop */
+  /* ☀️ SUN SLIDER — drives the whole illumination chain */
+  const sf=sunFactor;                       /* 0 → 3.0 */
+  const sfV=Math.min(sf,3);
+  sunLight.intensity=2600*sf;
+  fill.intensity=0.30*sf;
+  ambient.intensity=0.02+0.38*Math.min(sf,1.5);    /* near-black when the sun is off */
+  moonFaceLight.intensity=32*sf;
+  /* exposure follows the light output, compressed so it never blows out */
+  renderer.toneMappingExposure=0.85*(0.5+0.5*Math.min(sfV,2));
+  /* the photosphere itself brightens / fades */
+  sunShaderMat.uniforms.uBright.value=0.12+0.88*Math.min(sfV,2.2);
+  const coronaK=Math.min(sfV,1.8);
+  chromoMat.uniforms.uBright.value=0.10+0.90*coronaK;
+  chromoMat.uniforms.uTime.value=t;
+  coronaSprite.material.opacity=0.7*Math.min(coronaK,1.5);
+  coronaSprite.scale.setScalar(30*(0.72+0.28*coronaK));
+  sunHalo.material.opacity=0.5*coronaK;
+  sunHalo.scale.setScalar(46*(0.7+0.3*coronaK));
+  /* dust belts are lit by the sun too */
+  const beltK=0.12+0.88*Math.min(sfV,2.0);
+  for(const m of sunLitMats){ m.opacity=Math.min(1,m._baseOpacity*beltK); }
+  lensflare.visible=(sf>0.12)&&camera.position.distanceTo(SOLAR_POS)<4200;
+  for(const p of planets){
+    p.angle+=p.speed*simSpeed*dt;
+    p.anchor.position.set(Math.cos(p.angle)*p.dist,0,Math.sin(p.angle)*p.dist);
+    p.mesh.rotation.y+=p.rot*simSpeed*dt;
+    if(p.cloud) p.cloud.rotation.y+=p.rot*1.4*simSpeed*dt;
+    for(const m of p.moons){
+      const mult=m.slow?moonSpeedMult:1;
+      m.a+=m.sp*mult*simSpeed*dt;
+      m.g.position.set(Math.cos(m.a)*m.d,0,Math.sin(m.a)*m.d);
+      if(m.lock) m.mesh.rotation.y=-m.a;
+    }
+  }
+  for(const dp of dwarfPlanets){
+    dp.a+=dp.speed*simSpeed*dt;
+    dp.mesh.position.set(Math.cos(dp.a)*dp.d,0,Math.sin(dp.a)*dp.d);
+  }
+  earthSpin+=EARTH_ROT*simSpeed*dt;
+  lunAcc+=earthMoon.sp*moonSpeedMult*simSpeed*dt;
+  if(viewMode==='earth'){ dayCountEl.textContent=Math.floor(earthSpin/TAU); lunCountEl.textContent=Math.floor(lunAcc/TAU); }
+  earthAnchor.getWorldPosition(TMP);
+  TMP2.copy(SOLAR_POS).sub(TMP).normalize();
+  if(nightLayerMat) nightLayerMat.uniforms.uSunDir.value.copy(TMP2);
+  accretionDisks.forEach(m=>m.uniforms.uTime.value=t*1.4);
+  sun.rotation.y+=0.02*simSpeed*dt;
+  sunShaderMat.uniforms.uTime.value=t;
+  galaxyGroup.rotation.y+=dt*0.005*simSpeed;
+  if(window._andrGroup) window._andrGroup.rotation.y+=dt*0.0003*simSpeed;
+  m13Group.rotation.y+=dt*0.04*simSpeed; /* M13 spins faster (compact object) */
+  for(const cl of clusters){ if(cl.grp) cl.grp.rotation.y+=dt*0.002*simSpeed; } /* Galaxy clusters drift slowly */
+  /* bgMat2 twinkle handled via _baseOp */
+  comet.M+=TAU/240*simSpeed*dt;
+  const E=keplerE(((comet.M%TAU)+TAU)%TAU,COMET_E);
+  const xp=COMET_A*(Math.cos(E)-COMET_E), yp=COMET_A*Math.sqrt(1-COMET_E*COMET_E)*Math.sin(E);
+  TMP.set(xp,yp*Math.sin(COMET_INC),yp*Math.cos(COMET_INC));
+  comet.grp.position.copy(TMP);
+  const cr=TMP.length();
+  TMP2.copy(TMP).normalize();
+  comet.grp.quaternion.setFromUnitVectors(X_AXIS,TMP2);
+  const act=THREE.MathUtils.clamp(150/cr,0.25,3);
+  comet.ionTail.scale.set(65*act,1,1);
+  comet.ionTail.material.opacity=Math.min(0.9,0.15+0.25*act);
+  comet.dustTail.scale.set(45*act,1,1);
+  comet.dustTail.material.opacity=Math.min(0.75,0.1+0.22*act);
+  comet.coma.scale.setScalar(12+20*act);
+  comet.head.scale.setScalar(2+3*act);
+  comet.core.scale.setScalar(1+2.5*act);
+  /* Animate Oort cloud comets on Keplerian orbits */
+  for(const oc of oortComets){
+    oc.M+=TAU/480*simSpeed*dt;
+    const oE=keplerE(((oc.M%TAU)+TAU)%TAU,oc.e);
+    const oxp=oc.a*(Math.cos(oE)-oc.e), oyp=oc.a*Math.sqrt(1-oc.e*oc.e)*Math.sin(oE);
+    TMP.set(oxp,0,oyp);
+    oc.grp.position.copy(TMP);
+    const ocr=TMP.length();
+    TMP2.copy(TMP).normalize();
+    oc.grp.quaternion.setFromUnitVectors(X_AXIS,TMP2);
+    /* Tail grows when closer to sun, shrinks when far */
+    const oAct=THREE.MathUtils.clamp(250/ocr,0.1,4);
+    oc.ionTail.scale.set(42*oAct,1,1);
+    oc.ionTail.material.opacity=Math.min(0.85,0.1+0.25*oAct);
+    oc.dustTail.scale.set(32*oAct,1,1);
+    oc.dustTail.material.opacity=Math.min(0.7,0.08+0.2*oAct);
+    oc.coma.scale.setScalar(8+14*oAct);
+    oc.head.scale.setScalar(1.5+3*oAct);
+    oc.core.scale.setScalar(0.8+2*oAct);
+  }
+  /* Belt dust really orbits the Sun — rotate every dust layer */
+  for(const b of spinBelts) b.g.rotation.y-=b.sp*simSpeed*dt;
+  /* Animate asteroid-belt + inner meteoroid rocks on Keplerian orbits */
+  for(const list of [asteroidFlyingRocks,innerFlyingRocks]){
+    for(const ar of list){
+      ar.M+=ar.speed*simSpeed*dt;
+      const aE=keplerE(((ar.M%TAU)+TAU)%TAU,ar.e);
+      ar.grp.position.set(ar.a*(Math.cos(aE)-ar.e),0,ar.a*Math.sqrt(1-ar.e*ar.e)*Math.sin(aE));
+      ar.rock.rotation.x+=0.5*ar.spin*simSpeed*dt;
+      ar.rock.rotation.y+=0.35*ar.spin*simSpeed*dt;
+    }
+  }
+  /* Animate Kuiper belt flying rocks on Keplerian orbits */
+  for(const kr of kuiperFlyingRocks){
+    kr.M+=TAU/300*simSpeed*dt;
+    const krE=keplerE(((kr.M%TAU)+TAU)%TAU,kr.e);
+    const krxp=kr.a*(Math.cos(krE)-kr.e), kryp=kr.a*Math.sqrt(1-kr.e*kr.e)*Math.sin(krE);
+    kr.grp.position.set(krxp,0,kryp);
+    kr.rock.rotation.x+=0.02*simSpeed*dt;
+    kr.rock.rotation.y+=0.015*simSpeed*dt;
+  }
+  /* Animate named comets + interstellar visitors on Keplerian orbits */
+  for(const sc of solarComets){
+    sc.M+=sc.speed*simSpeed*dt;
+    const scE=keplerE(((sc.M%TAU)+TAU)%TAU,Math.min(sc.e,0.99));
+    const sxp=sc.a*(Math.cos(scE)-sc.e);
+    const syp=sc.a*Math.sqrt(Math.max(0.001,1-sc.e*sc.e))*Math.sin(scE);
+    /* Argument of periapsis rotation (in orbital plane) */
+    const w=sc.argPeri, cw=Math.cos(w), sw=Math.sin(w);
+    const xp=sxp*cw-syp*sw, yp=sxp*sw+syp*cw;
+    /* Inclination rotation (tilt orbital plane around x) */
+    const i=sc.inc, ci=Math.cos(i), si=Math.sin(i);
+    const x2=xp, y2=yp*ci, z2=yp*si;
+    /* RAAN rotation (rotate around z) */
+    const O=sc.raan, cO=Math.cos(O), sO=Math.sin(O);
+    const fx=x2*cO-y2*sO, fy=x2*sO+y2*cO, fz=z2;
+    sc.grp.position.set(fx,fy,fz);
+    const scr=sc.grp.position.length();
+    if(scr>0.01){
+      TMP2.copy(sc.grp.position).normalize();
+      sc.grp.quaternion.setFromUnitVectors(X_AXIS,TMP2);
+    }
+    /* Tail grows when closer to sun */
+    const scAct=THREE.MathUtils.clamp(150/scr,0.1,4);
+    if(sc.tail){sc.tail.scale.set(scAct*1.8,1,1); sc.tail.material.opacity=Math.min(0.8,0.08+0.22*scAct); }
+    if(sc.dust){sc.dust.scale.set(scAct*1.3,1,1); sc.dust.material.opacity=Math.min(0.65,0.05+0.18*scAct); }
+    if(sc.head) sc.head.scale.setScalar(scAct*0.8+1);
+    if(sc.core) sc.core.scale.setScalar(scAct*0.5+0.5);
+  }
+  /* Dim ALL background elements (stars + galaxies + nebulae) when near the solar system */
+  const camDistSun=camera.position.distanceTo(SOLAR_POS);
+  const starDim=THREE.MathUtils.clamp((camDistSun-80)/2000,0,1);
+  const dimFactor=starDim*starDim*starDim;
+  for(const m of _bgMats) m.opacity=m._baseOp*dimFactor;
+
+  if(touring){ tourTimer-=dt; if(tourTimer<=0) nextTour(); }
+
+  if(viewMode==='skymap'){
+    simTime+=dt*1000*simSpeed*60;
+    drawFisheye();
+    const date=new Date(simTime);
+    timeTxt.textContent=date.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'})+
+      ' — '+date.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+    skyInfo.textContent=viewMode==='skymap'?`SkyMap : ${userLat.toFixed(1)}°N ${userLon.toFixed(1)}°E. Touchez les objets pour les identifier.`:'SkyMap.';
+    return;
+  }
+
+  renderPass.scene=scene;
+  if(flight){
+    flight.el+=dt; const k=easeIO(Math.min(1,flight.el/flight.dur));
+    if(!flight.p0){ flight.p0=camera.position.clone(); flight.t0=controls.target.clone(); }
+    camera.position.lerpVectors(flight.p0,flight.getP1(),k);
+    controls.target.lerpVectors(flight.t0,flight.getT1(),k);
+    if(flight.el>=flight.dur){ flight=null; controls.enabled=true; }
+  }
+  else if(viewMode==='earth'){ earthAnchor.getWorldPosition(TMP); TMP2.subVectors(TMP,controls.target); camera.position.add(TMP2); controls.target.copy(TMP); }
+  controls.update();
+  camera.updateMatrixWorld();
+  setLens(lensPass.uniforms.uLensA,lensPass.uniforms.uRA,sgrA.position,75);
+  setLens(lensPass.uniforms.uLensB,lensPass.uniforms.uRB,BH2_POS,30);
+  lensPass.uniforms.uTime.value=t;
+  composer.render();
+}
+function animate(){
+  requestAnimationFrame(animate);
+  try{ tick(); }catch(err){ showError(err.message||String(err)); }
+}
+animate();
+addEventListener('resize',()=>{
+  camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth,innerHeight);
+  composer.setSize(innerWidth,innerHeight);
+  lensPass.uniforms.uAspect.value=innerWidth/innerHeight;
+});
+</script>
+</body>
+</html>
