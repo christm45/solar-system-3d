@@ -1,3 +1,5 @@
+https://christm45.github.io/solar-system-3d/
+
 # Univers profond — simulateur 3D du système solaire
 
 Simulation web 3D (Three.js) du système solaire et de son environnement galactique,
