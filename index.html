@@ -24,6 +24,12 @@
   #earthHud{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);z-index:10;display:none;color:#dfe6f5;}
   #timePanel{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);z-index:10;display:none;color:#dfe6f5;text-align:center;}
   #tourPanel{position:fixed;top:18px;left:50%;transform:translateX(-50%);z-index:11;display:none;max-width:580px;color:#dfe6f5;}
+  #shipHud{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);z-index:11;display:none;color:#dfe6f5;text-align:center;max-width:min(760px,94vw);}
+  #shipHud .panel.small{max-width:none;border-color:rgba(120,220,255,.28);box-shadow:0 8px 32px rgba(0,20,40,.5);}
+  #shipHud b{color:#a8e8ff;}
+  #shipSub{margin-top:5px;font-size:11.5px;color:#a9b8d6;}
+  body.night-mode #shipHud .panel.small{background:rgba(30,8,8,.72);border-color:rgba(255,80,80,.2);color:#ffcccc;}
+  body.night-mode #shipHud b{color:#ff9a9a;}
   .panel.small{padding:10px 18px;font-size:12.5px;max-width:640px;}
   .panel.small .note{margin-top:6px;font-size:10.5px;color:#8fa0c0;line-height:1.5;}
   #fisheyeTools{position:fixed;right:18px;bottom:18px;z-index:10;display:none;color:#dfe6f5;padding:10px 12px;}
@@ -231,6 +237,7 @@
       <button id="btn-m31">🌀 Andromède</button>
       <button id="btn-cluster">🔭 Amas</button>
       <button id="btn-skymap" class="active">🌠 SkyMap</button>
+      <button id="btn-ship" title="Suivre le vaisseau dans l'Univers — réappuyer pour sauter à l'étape suivante">🛸 Vaisseau</button>
     </div>
     <p class="sub" style="margin:2px 0 5px">🛰️ <b>Survol des planètes</b> — la caméra suit la planète, molette pour approcher</p>
     <div class="btnrow" id="planetRow">
@@ -275,6 +282,12 @@
   <div class="panel small">
     🌍 Rotation de la Terre : <b><span id="dayCount">0</span> jour(s)</b> &nbsp;·&nbsp; 🌙 Lune : <b><span id="lunCount">0</span> lunaison(s)</b>
     <div class="note">La Lune tourne sur elle-même en exactement une révolution : la même face (toujours éclairée depuis la Terre) reste en permanence tournée vers nous.</div>
+  </div>
+</div>
+<div id="shipHud">
+  <div class="panel small">
+    <div id="shipTxt" style="font-size:13px;font-weight:600"></div>
+    <div id="shipSub"></div>
   </div>
 </div>
 <div id="timePanel">
@@ -5264,7 +5277,351 @@ const timePanel=document.getElementById('timePanel');
 const timeTxt=document.getElementById('timeTxt');
 const skyInfo=document.getElementById('skyInfo');
 const tourPanel=document.getElementById('tourPanel');
-const VIEW_IDS=['galaxy','system','earth','bh','m13','m31','cluster','skymap'];
+const shipHud=document.getElementById('shipHud');
+/* =========================================================
+   🛸 L'ÉCLAIREUR — vaisseau interstellaire relativiste
+   ---------------------------------------------------------
+   Un vaisseau qui parcourt reellement l'Univers de la scene, a la
+   vitesse de la lumiere. Ce n'est pas un chiffre decoratif : la scene
+   est a l'echelle (GAL_LY unites par annee-lumiere), donc franchir
+   22 200/GAL_LY unites, c'est bien 22 200 ans de vol. Le seul artifice
+   est la COMPRESSION DU TEMPS — exactement comme pour les orbites des
+   planetes. Elle est pilotee par le curseur « Vitesse » et affichee en
+   clair dans le bandeau (annees ecoulees par seconde).
+
+   Le trajet est une boucle fermee (Catmull-Rom) qui passe par le
+   Systeme solaire, Orion, les Pleiades, le Crabe, M13, le centre
+   galactique, le trou noir, Andromede et un amas lointain.
+
+   Eclairage : aucune lampe ajoutee a la scene. La coque est rendue en
+   MATCAP (une sphere de reference peinte a la main dans un canvas), ce
+   qui donne un metal credible meme a 2 millions d'annees-lumiere du
+   Soleil, sans toucher a l'eclairage du reste de l'Univers.
+   ========================================================= */
+const SHIP={};
+(function buildShipSystem(){
+  /* ---------- points de passage ---------- */
+  const wp=[];
+  const M=(id)=>{ const o=MESSIER.find(x=>x.id===id); return o?o.pos:null; };
+  const push=(n,p,off)=>{ if(!p) return; wp.push({n,p:off?p.clone().add(off):p.clone()}); };
+
+  push('Système solaire',         SOLAR_POS, new THREE.Vector3(0,26,215));
+  push('Ceinture de Kuiper',      SOLAR_POS, new THREE.Vector3(-260,-40,-190));
+  push('M42 — Nébuleuse d’Orion', M('M42'),  new THREE.Vector3(0,90,150));
+  push('M45 — Les Pléiades',      M('M45'),  new THREE.Vector3(0,60,110));
+  push('M1 — Le Crabe',           M('M1'),   new THREE.Vector3(0,50,90));
+  push('M13 — Amas d’Hercule',    M13_POS,   new THREE.Vector3(0,120,190));
+  push('Sagittarius A*',          new THREE.Vector3(0,0,0), new THREE.Vector3(380,160,380));
+  push('Trou noir stellaire',     BH2_POS,   new THREE.Vector3(150,60,150));
+  push('M31 — Andromède',         ANDR_POS,  ANDR_VIEW_DIR.clone().multiplyScalar(9000).add(new THREE.Vector3(0,900,0)));
+  if(clusters.length) push('Amas de galaxies', clusters[0].center,
+                            clusters[0].center.clone().normalize().multiplyScalar(-2600));
+  push('Retour vers le Soleil',   SOLAR_POS, new THREE.Vector3(760,260,980));
+
+  const curve=new THREE.CatmullRomCurve3(wp.map(w=>w.p),true,'catmullrom',0.30);
+  /* Pas de table d'abscisse curviligne : sur un trajet ou les troncons vont de
+     200 a 45 000 unites, aucune table raisonnable n'est assez fine, et la
+     vitesse se met a fluctuer d'un facteur 3 selon l'endroit. On reparametre
+     donc LOCALEMENT, a chaque image : on mesure la longueur de courbe par
+     unite de parametre au point courant, et on en deduit le pas exact. La
+     vitesse devient rigoureusement constante — ce qui est la moindre des
+     choses pour un mobile qui va a c. */
+  const _a=new THREE.Vector3(), _b=new THREE.Vector3();
+  const dLdt=(x)=>{ const h=2e-5;
+    return curve.getPoint((x+h)%1,_a).distanceTo(curve.getPoint((x-h+1)%1,_b))/(2*h); };
+  /* courbe fermee sur N points : l'etape i tombe exactement en t = i/N */
+  const wpT=wp.map((w,i)=>i/wp.length);
+  /* longueur reelle d'un troncon, par echantillonnage (sert au compteur) */
+  const arcBetween=(t0,t1)=>{ let L=0; const N=240;
+    curve.getPoint(t0,_a);
+    for(let k=1;k<=N;k++){ const tt=(t0+(t1-t0)*k/N+1)%1;
+      L+=_a.distanceTo(curve.getPoint(tt,_b)); _a.copy(_b); }
+    return L; };
+
+  /* ---------- MATCAP : la lumiere est peinte, pas calculee ---------- */
+  const matcap=(hi,mid,rim)=>canvasTex(256,256,(g,w,h)=>{
+    g.fillStyle='#020306'; g.fillRect(0,0,w,h);
+    g.save(); g.beginPath(); g.arc(128,128,128,0,TAU); g.clip();
+    let gr=g.createRadialGradient(96,78,8,128,128,132);
+    gr.addColorStop(0,hi); gr.addColorStop(0.45,mid); gr.addColorStop(1,'#04060c');
+    g.fillStyle=gr; g.fillRect(0,0,w,h);
+    gr=g.createRadialGradient(128,128,100,128,128,128);          /* lisere de bord */
+    gr.addColorStop(0,'rgba(0,0,0,0)'); gr.addColorStop(1,rim);
+    g.fillStyle=gr; g.fillRect(0,0,w,h);
+    gr=g.createRadialGradient(92,72,0,92,72,46);                 /* eclat speculaire */
+    gr.addColorStop(0,'rgba(255,255,255,0.92)'); gr.addColorStop(1,'rgba(255,255,255,0)');
+    g.fillStyle=gr; g.fillRect(0,0,w,h);
+    gr=g.createRadialGradient(170,196,0,170,196,64);             /* rebond froid */
+    gr.addColorStop(0,'rgba(90,150,220,0.30)'); gr.addColorStop(1,'rgba(90,150,220,0)');
+    g.fillStyle=gr; g.fillRect(0,0,w,h);
+    g.restore();
+  });
+  const HULL=new THREE.MeshMatcapMaterial({matcap:matcap('#c8d8f0','#2c3852','rgba(120,180,255,0.55)')});
+  const WING=new THREE.MeshMatcapMaterial({matcap:matcap('#e2eaff','#3d4a68','rgba(160,140,255,0.6)'),
+    side:THREE.DoubleSide});
+
+  /* ---------- LE VAISSEAU ---------- */
+  const ship=new THREE.Group(); scene.add(ship);
+  const model=new THREE.Group(); ship.add(model);      /* nez vers +Z, longueur 1 */
+  const glowMat=(hex,op)=>new THREE.MeshBasicMaterial({color:hex,transparent:true,opacity:op,
+    blending:THREE.AdditiveBlending,depthWrite:false,fog:false});
+  const CYAN=0x63e6ff, VIOLET=0xa98bff;
+
+  /* fuselage : fuseau de revolution, effile a l'avant, tronque a la tuyere */
+  (function(){
+    const prof=[];
+    for(let i=0;i<=32;i++){ const u=i/32;
+      const r=0.100*Math.pow(Math.sin(Math.PI*Math.pow(u,0.60)),0.55)*(1-0.32*u)+0.007;
+      prof.push(new THREE.Vector2(Math.max(0.006,r),-0.50+u));
+    }
+    const geo=new THREE.LatheGeometry(prof,64); geo.rotateX(Math.PI/2);
+    model.add(new THREE.Mesh(geo,HULL));
+  })();
+
+  /* verriere : bulle sombre iridescente sur l'avant */
+  (function(){
+    const geo=new THREE.SphereGeometry(0.058,28,18,0,TAU,0,Math.PI*0.55);
+    geo.scale(1.05,0.78,2.45); geo.translate(0,0.074,0.20);
+    model.add(new THREE.Mesh(geo,new THREE.MeshMatcapMaterial({
+      matcap:matcap('#9fe8ff','#06283c','rgba(120,230,255,0.7)')})));
+  })();
+
+  /* liserés de coque : deux traits lumineux du nez a la tuyere */
+  for(const s of [-1,1]){
+    const geo=new THREE.BoxGeometry(0.007,0.005,0.50); geo.translate(s*0.088,0.036,-0.08);
+    model.add(new THREE.Mesh(geo,glowMat(CYAN,0.9)));
+  }
+
+  /* ailes delta en fleche */
+  (function(){
+    const sh=new THREE.Shape();
+    sh.moveTo(0.035, 0.20); sh.lineTo(0.400,-0.10); sh.lineTo(0.420,-0.20);
+    sh.lineTo(0.090,-0.32); sh.closePath();
+    const geo=new THREE.ExtrudeGeometry(sh,{depth:0.013,bevelEnabled:false});
+    geo.translate(0,0,-0.0065); geo.rotateX(Math.PI/2);   /* envergure X, corde Z */
+    for(const s of [-1,1]){
+      const w=new THREE.Mesh(geo.clone(),WING); w.scale.x=s; w.position.y=-0.012; model.add(w);
+      /* bord d'attaque incandescent */
+      const eg=new THREE.BoxGeometry(0.008,0.006,0.472);
+      eg.rotateY(s*2.259); eg.translate(s*0.2175,-0.012,0.05);
+      model.add(new THREE.Mesh(eg,glowMat(VIOLET,0.8)));
+    }
+  })();
+
+  /* nacelles de distorsion : deux fuseaux sur pylones, ceints d'anneaux */
+  const rings=[];
+  for(const s of [-1,1]){
+    const pyl=new THREE.BoxGeometry(0.16,0.014,0.055); pyl.translate(s*0.26,-0.040,-0.13);
+    model.add(new THREE.Mesh(pyl,HULL));
+    const nac=THREE.CapsuleGeometry
+      ? new THREE.CapsuleGeometry(0.026,0.20,6,16)
+      : new THREE.CylinderGeometry(0.026,0.026,0.24,16);
+    nac.rotateX(Math.PI/2); nac.translate(s*0.345,-0.072,-0.10);
+    model.add(new THREE.Mesh(nac,HULL));
+    const rg=new THREE.TorusGeometry(0.052,0.007,10,40);
+    const r1=new THREE.Mesh(rg,glowMat(CYAN,0.95));   r1.position.set(s*0.345,-0.072,-0.00);
+    model.add(r1); rings.push(r1);
+    const r2=new THREE.Mesh(rg,glowMat(VIOLET,0.70)); r2.position.set(s*0.345,-0.072,-0.19);
+    r2.scale.setScalar(0.84); model.add(r2); rings.push(r2);
+  }
+
+  /* tuyeres et panaches : trois cones additifs qui s'allongent avec la poussee */
+  /* chaque tuyere est posee sur SA structure : la centrale au cul du fuselage,
+     les laterales au cul des nacelles */
+  const plumes=[], NOZ=[[0,0.010,1.00,-0.500],
+                        [-0.345,-0.072,0.60,-0.235],
+                        [ 0.345,-0.072,0.60,-0.235]];
+  for(const [nx,ny,k,nz] of NOZ){
+    const noz=new THREE.CylinderGeometry(0.030*k,0.037*k,0.05,20);
+    noz.rotateX(Math.PI/2); noz.translate(nx,ny,nz);
+    model.add(new THREE.Mesh(noz,HULL));
+    const cg=new THREE.ConeGeometry(0.030*k,0.52,20,1,true);
+    cg.rotateX(-Math.PI/2); cg.translate(nx,ny,nz-0.31);
+    const pm=glowMat(0x8fd8ff,0.5); pm.side=THREE.DoubleSide;
+    const p=new THREE.Mesh(cg,pm); model.add(p); plumes.push(p);
+    const gs=new THREE.Sprite(new THREE.SpriteMaterial({map:softTex,color:0x9fe0ff,
+      transparent:true,opacity:0.85,blending:THREE.AdditiveBlending,depthWrite:false,fog:false}));
+    gs.position.set(nx,ny,nz-0.03); gs.scale.setScalar(0.20*k+0.10); model.add(gs);
+  }
+
+  /* feux de navigation : rouge a babord, vert a tribord, strobe dorsal */
+  const navR=new THREE.Mesh(new THREE.SphereGeometry(0.012,10,8),glowMat(0xff3a4e,1));
+  navR.position.set(-0.405,-0.014,-0.145); model.add(navR);
+  const navG=new THREE.Mesh(new THREE.SphereGeometry(0.012,10,8),glowMat(0x3aff8e,1));
+  navG.position.set(0.405,-0.014,-0.145); model.add(navG);
+  const strobe=new THREE.Sprite(new THREE.SpriteMaterial({map:softTex,color:0xffffff,
+    transparent:true,opacity:0,blending:THREE.AdditiveBlending,depthWrite:false,fog:false}));
+  strobe.position.set(0,0.105,0.02); strobe.scale.setScalar(0.17); model.add(strobe);
+
+  /* halo de bouclier : garde le vaisseau lisible sur fond d'etoiles */
+  const halo=new THREE.Sprite(new THREE.SpriteMaterial({map:softTex,color:0x86c4ff,
+    transparent:true,opacity:0.40,blending:THREE.AdditiveBlending,depthWrite:false,fog:false}));
+  halo.scale.setScalar(1.5); halo.renderOrder=6; model.add(halo);
+
+  /* ---------- SILLAGE ---------- */
+  const TRAIL=240;
+  const tPos=new Float32Array(TRAIL*3), tCol=new Float32Array(TRAIL*3);
+  const tGeo=new THREE.BufferGeometry();
+  tGeo.setAttribute('position',new THREE.BufferAttribute(tPos,3));
+  tGeo.setAttribute('color',new THREE.BufferAttribute(tCol,3));
+  const trail=new THREE.Points(tGeo,new THREE.PointsMaterial({size:3.2,sizeAttenuation:false,
+    map:softTex,vertexColors:true,transparent:true,opacity:0.9,depthWrite:false,
+    blending:THREE.AdditiveBlending,fog:false}));
+  trail.frustumCulled=false; trail.renderOrder=5; tGeo.setDrawRange(0,0); scene.add(trail);
+  let tHead=0,tFill=0;
+
+  /* ---------- RAIES DE VITESSE (vue « à bord ») ----------
+     Ce qui donne la sensation de vitesse, ce n'est pas le vaisseau : ce sont
+     les astres proches qui defilent en traits. Elles vivent dans le repere du
+     vaisseau, donc elles suivent ses embardees. */
+  const NS=560;
+  const sPos=new Float32Array(NS*6), sCol=new Float32Array(NS*6);
+  const sZ=new Float32Array(NS), sXY=new Float32Array(NS*2);
+  const sGeo=new THREE.BufferGeometry();
+  sGeo.setAttribute('position',new THREE.BufferAttribute(sPos,3));
+  sGeo.setAttribute('color',new THREE.BufferAttribute(sCol,3));
+  const streaks=new THREE.LineSegments(sGeo,new THREE.LineBasicMaterial({vertexColors:true,
+    transparent:true,opacity:0,blending:THREE.AdditiveBlending,depthWrite:false,fog:false}));
+  streaks.frustumCulled=false; streaks.renderOrder=5; streaks.visible=false; ship.add(streaks);
+  const SR=42, SZR=170;                       /* rayon et portee, en unites du modele */
+  const respawn=(i)=>{ const a=Math.random()*TAU, r=SR*(0.16+0.84*Math.sqrt(Math.random()));
+    sXY[i*2]=Math.cos(a)*r; sXY[i*2+1]=Math.sin(a)*r; };
+  for(let i=0;i<NS;i++){
+    respawn(i); sZ[i]=-SZR+Math.random()*SZR*2;
+    const c=0.5+Math.random()*0.5, warm=Math.random()<0.3;
+    for(let k=0;k<2;k++){
+      sCol[i*6+k*3]  =c*(warm?1.0:0.70);
+      sCol[i*6+k*3+1]=c*(warm?0.86:0.88);
+      sCol[i*6+k*3+2]=c*(warm?0.72:1.0);
+    }
+  }
+
+  /* ---------- ÉTAT DE VOL ---------- */
+  let tP=0, travelled=0, bank=0, hudT=0;   /* tP = parametre le long du trajet */
+  const P=new THREE.Vector3(), TAN=new THREE.Vector3(), PREV=new THREE.Vector3();
+  const LOOK=new THREE.Vector3(), lastTan=new THREE.Vector3(0,0,1);
+  const dummy=new THREE.Object3D();
+  const qTarget=new THREE.Quaternion(), qRoll=new THREE.Quaternion();
+  const ZAX=new THREE.Vector3(0,0,1);
+  curve.getPoint(0,P); PREV.copy(P); ship.position.copy(P);
+  curve.getTangent(0,lastTan).normalize();
+
+  /* Le vaisseau va a c. Ce que regle le curseur « Vitesse », c'est la
+     COMPRESSION DU TEMPS. L'exposant 1.6 elargit la plage utile : en bas du
+     curseur on flane dans le Systeme solaire, en haut on franchit le vide
+     intergalactique sans attendre — sans jamais changer la vitesse du
+     vaisseau, qui reste c. */
+  const K=45, warp=()=>K*Math.pow(Math.max(0.05,simSpeed),1.6);
+  const hud=document.getElementById('shipHud');
+  const hudTxt=document.getElementById('shipTxt');
+  const hudSub=document.getElementById('shipSub');
+  const fmt=(v)=>v>=1e9?(v/1e9).toFixed(2)+' Md':v>=1e6?(v/1e6).toFixed(2)+' M':
+                 v>=1e3?Math.round(v).toLocaleString('fr-FR'):v.toFixed(1);
+  function destName(){
+    for(let i=0;i<wpT.length;i++) if(wpT[i]>tP+1e-6) return wp[i].n;
+    return wp[0].n;
+  }
+
+  SHIP.group=ship;
+  SHIP.position=P;                 /* mis a jour sur place a chaque image */
+  SHIP.jump=function(){            /* saute a l'etape suivante du trajet */
+    const st=1/wp.length;
+    let nxt=Math.floor(tP/st+1.0001)*st; if(nxt>=1) nxt=0;
+    travelled+=arcBetween(tP,nxt>tP?nxt:nxt+1);
+    tP=nxt; tFill=0; tHead=0; tGeo.setDrawRange(0,0);
+    curve.getPoint(tP,P); ship.position.copy(P);
+    curve.getTangent(tP,lastTan).normalize();
+  };
+  SHIP.destName=destName;
+
+  SHIP.update=function(dt){
+    const speed=warp();                           /* unites de scene par seconde */
+    const step=speed*dt;
+    travelled+=step;
+    tP=(tP+step/Math.max(1e-6,dLdt(tP)))%1;       /* reparametrage local exact */
+    PREV.copy(P);
+    curve.getPoint(tP,P);
+    curve.getTangent(tP,TAN).normalize();
+    ship.position.copy(P);
+
+    /* orientation : le nez suit la tangente, la coque s'incline dans les
+       virages — le roulis se deduit de la vitesse de rotation de la tangente */
+    dummy.position.copy(P);
+    dummy.up.set(0,1,0);
+    if(Math.abs(TAN.y)>0.985) dummy.up.set(0,0,1);      /* evite la singularite */
+    dummy.lookAt(LOOK.copy(P).add(TAN));
+    const turn=lastTan.distanceTo(TAN)/Math.max(1e-5,dt);
+    const side=Math.sign(TAN.x*lastTan.z-TAN.z*lastTan.x)||1;
+    bank+=(THREE.MathUtils.clamp(turn*2.2,0,1.0)*side*0.85-bank)*Math.min(1,dt*2.0);
+    lastTan.copy(TAN);
+    qRoll.setFromAxisAngle(ZAX,bank);
+    qTarget.copy(dummy.quaternion).multiply(qRoll);
+    ship.quaternion.slerp(qTarget,1-Math.exp(-dt*5));
+
+    /* Taille apparente : a l'echelle de la Galaxie, un vaisseau de 60 m est
+       invisible. On le dilate avec la distance pour qu'il garde une taille
+       lisible a l'ecran, comme un marqueur — jamais en dessous du reel. */
+    const dCam=camera.position.distanceTo(P);
+    ship.scale.setScalar(THREE.MathUtils.clamp(dCam/95,1,900)*3.2);
+
+    /* propulsion : le panache respire, les anneaux tournent, le strobe bat */
+    const th=THREE.MathUtils.clamp(simSpeed/6,0.25,1.6);
+    const fl=0.85+0.15*Math.sin(clock.elapsedTime*17.0);
+    for(const p of plumes){
+      p.scale.set(1,1,(0.60+1.05*th)*fl);
+      p.material.opacity=(0.28+0.32*th)*fl;
+    }
+    for(let i=0;i<rings.length;i++) rings[i].rotation.z+=dt*(i%2?-2.6:2.6)*(0.4+th);
+    strobe.material.opacity=(clock.elapsedTime%1.15)<0.09?0.95:0;
+    halo.material.opacity=0.28+0.16*fl;
+
+    /* sillage : chapelet de points qui s'eteint derriere le vaisseau */
+    if(PREV.distanceToSquared(P)>1e-8){
+      tPos[tHead*3]=P.x; tPos[tHead*3+1]=P.y; tPos[tHead*3+2]=P.z;
+      tHead=(tHead+1)%TRAIL; tFill=Math.min(TRAIL,tFill+1);
+      for(let i=0;i<tFill;i++){
+        const idx=(tHead-1-i+TRAIL*2)%TRAIL, f=Math.pow(1-i/tFill,2);
+        tCol[idx*3]=0.35*f; tCol[idx*3+1]=0.72*f; tCol[idx*3+2]=1.0*f;
+      }
+      tGeo.attributes.position.needsUpdate=true;
+      tGeo.attributes.color.needsUpdate=true;
+      tGeo.setDrawRange(0,tFill);
+    }
+
+    /* raies de vitesse : seulement quand on voyage a bord */
+    const aboard=(viewMode==='ship');
+    streaks.visible=aboard;
+    if(aboard){
+      const vis=THREE.MathUtils.clamp(simSpeed/2.2,0.18,1);
+      streaks.material.opacity=0.5*vis;
+      const ln=3+58*vis, adv=(38+230*vis)*dt;
+      for(let i=0;i<NS;i++){
+        sZ[i]-=adv;
+        if(sZ[i]<-SZR){ sZ[i]+=SZR*2; respawn(i); }
+        const x=sXY[i*2], y=sXY[i*2+1], z=sZ[i];
+        sPos[i*6]=x;   sPos[i*6+1]=y; sPos[i*6+2]=z;
+        sPos[i*6+3]=x; sPos[i*6+4]=y; sPos[i*6+5]=z+ln;
+      }
+      sGeo.attributes.position.needsUpdate=true;
+    }
+
+    /* bandeau de bord */
+    hudT-=dt;
+    if(hud&&hud.style.display!=='none'&&hudT<=0){
+      hudT=0.12;
+      const ly=travelled/GAL_LY;              /* annees-lumiere parcourues */
+      const yps=speed/GAL_LY;                 /* annees ecoulees par seconde */
+      hudTxt.innerHTML='🛸 <b>L’Éclaireur</b> &nbsp;·&nbsp; vitesse <b>c</b> — 299 792 458 m/s'+
+        ' &nbsp;·&nbsp; cap sur <b>'+destName()+'</b>';
+      hudSub.innerHTML='Parcouru <b>'+fmt(ly)+' al</b> en <b>'+fmt(ly)+' ans</b>'+
+        ' &nbsp;·&nbsp; compression du temps <b>'+fmt(yps)+' ans/s</b>'+
+        '<div class="note">Le curseur « Vitesse » règle la compression du temps, pas la vitesse du vaisseau : '+
+        'à c, elle ne change jamais. Réappuyer sur 🛸 saute à l’étape suivante.</div>';
+    }
+  };
+})();
+
+const VIEW_IDS=['galaxy','system','earth','bh','m13','m31','cluster','skymap','ship'];
 let viewMode='galaxy',flight=null,simTime=Date.now();
 let tourIdx=-1,tourTimer=0,touring=false;
 const TMP=new THREE.Vector3(),TMP2=new THREE.Vector3(),TMP3=new THREE.Vector3(),FW=new THREE.Vector3();
@@ -5284,6 +5641,7 @@ function setView(v){
   VIEW_IDS.forEach(id=>document.getElementById('btn-'+id).classList.toggle('active',id===v));
   const skyMode=(v==='skymap');
   earthHud.style.display=v==='earth'?'block':'none';
+  shipHud.style.display=v==='ship'?'block':'none';
   asCanvas.style.display=skyMode?'block':'none';
   fisheyeTools.style.display=skyMode?'block':'none';
   timePanel.style.display=skyMode?'block':'none';
@@ -5306,6 +5664,17 @@ function setView(v){
     flyTo({dur:4.2,
       getP1:()=>ANDR_POS.clone().add(ANDR_VIEW_DIR.clone().multiplyScalar(16000)).add(new THREE.Vector3(0,1300,0)),
       getT1:()=>ANDR_POS.clone()}); }
+  else if(v==='ship'){
+    /* on se place en poursuite, legerement au-dessus et en arriere : la
+       consigne est recalculee a chaque image, donc la camera rattrape le
+       vaisseau meme s'il file pendant l'approche */
+    controls.minDistance=4; controls.maxDistance=4000;
+    flyTo({dur:2.6,
+      getP1:()=>{ const f=SHIP.group.getWorldDirection(new THREE.Vector3());
+        const up=new THREE.Vector3(0,1,0).applyQuaternion(SHIP.group.quaternion);
+        return SHIP.position.clone().addScaledVector(f,-46).addScaledVector(up,11); },
+      getT1:()=>SHIP.position.clone()});
+  }
   else if(v==='cluster'){ controls.minDistance=8;
     const C=clusters[0].center;
     flyTo({dur:3.4,getP1:()=>C.clone().add(C.clone().normalize().multiplyScalar(-3200)).add(new THREE.Vector3(0,700,0)),getT1:()=>C.clone()}); }
@@ -5363,6 +5732,7 @@ function flyToPlanet(name){
   document.querySelectorAll('#planetRow button').forEach(b=>b.classList.toggle('active',b.dataset.p===name));
   earthHud.style.display='none'; asCanvas.style.display='none'; fisheyeTools.style.display='none';
   timePanel.style.display='none'; tip.style.display='none'; objInfo.style.display='none';
+  shipHud.style.display='none';
   document.getElementById('searchPanel').style.display='none';
   document.getElementById('nightBtn').style.display='none';
   camera.fov=48; camera.updateProjectionMatrix();
@@ -5421,6 +5791,7 @@ function flyToMessier(i){
   planetInfoEl.style.display='none';
   earthHud.style.display='none'; asCanvas.style.display='none'; fisheyeTools.style.display='none';
   timePanel.style.display='none'; tip.style.display='none'; objInfo.style.display='none';
+  shipHud.style.display='none';
   document.getElementById('searchPanel').style.display='none';
   document.getElementById('nightBtn').style.display='none';
   camera.fov=55; camera.updateProjectionMatrix();
@@ -5464,7 +5835,11 @@ document.getElementById('tourStop').addEventListener('click',stopTour);
 document.getElementById('btnShot').addEventListener('click',()=>{ composer.render();
   const a=document.createElement('a'); a.download='univers-profond.png'; a.href=renderer.domElement.toDataURL('image/png'); a.click(); });
 
-VIEW_IDS.forEach(id=>document.getElementById('btn-'+id).addEventListener('click',()=>{ if(touring){ touring=false; tourPanel.style.display='none'; } setView(id); }));
+VIEW_IDS.forEach(id=>document.getElementById('btn-'+id).addEventListener('click',()=>{
+  if(touring){ touring=false; tourPanel.style.display='none'; }
+  /* deja a bord : le bouton devient « etape suivante » */
+  if(id==='ship'&&viewMode==='ship'){ SHIP.jump(); return; }
+  setView(id); }));
 
 document.getElementById('t-mh').addEventListener('click',()=>simTime-=3600e3);
 document.getElementById('t-ph').addEventListener('click',()=>simTime+=3600e3);
@@ -5784,6 +6159,8 @@ function tick(){
     for(const m of ANDR_GLOW) m.opacity*=kA*kA;
   }
 
+  SHIP.update(dt);
+
   if(touring){ tourTimer-=dt; if(tourTimer<=0) nextTour(); }
 
   if(viewMode==='skymap'){
@@ -5813,6 +6190,11 @@ function tick(){
     followPlanet.anchor.getWorldPosition(FOL);
     FOL2.subVectors(FOL,controls.target);
     camera.position.add(FOL2); controls.target.copy(FOL); }
+  else if(viewMode==='ship'){ /* poursuite : on translate la caméra du même
+      vecteur que le vaisseau, ce qui laisse l'utilisateur libre d'orbiter
+      autour de lui pendant le vol */
+    TMP3.subVectors(SHIP.position,controls.target);
+    camera.position.add(TMP3); controls.target.copy(SHIP.position); }
 
   controls.update();
   camera.updateMatrixWorld();
