@@ -3,10 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
-<title>Univers profond v19 — SkyMap zoomable + lentille gravitationnelle + M13 3D</title>
+<title>Univers profond v20 — Star Destroyer Impérial + SkyMap zoomable</title>
 <style>
   html,body{margin:0;padding:0;height:100%;overflow:hidden;background:#04060d;font-family:'Segoe UI',system-ui,-apple-system,sans-serif;-webkit-overflow-scrolling:touch;overscroll-behavior:none;-webkit-tap-highlight-color:transparent;}
   canvas{display:block;touch-action:none;}
+  body.pointer-lock canvas{cursor:none;}
   #ui{position:fixed;top:18px;left:18px;z-index:10;color:#dfe6f5;transition:opacity .18s ease, transform .18s ease;}
   #ui.hidden{opacity:0;transform:translateX(-16px);pointer-events:none;}
   #uiToggle{position:fixed;bottom:18px;left:18px;z-index:16;}
@@ -57,6 +58,7 @@
   @media(max-width:600px){ #planetInfo{left:8px;right:8px;bottom:8px;max-width:none;} #planetInfo .panel{max-height:34vh;overflow-y:auto;} #planetInfo #piDesc{display:none;} }
   #errToast{position:fixed;top:10px;left:50%;transform:translateX(-50%);z-index:99;display:none;background:#40121a;color:#ffb4b4;border:1px solid #ff6b6b;padding:8px 14px;border-radius:10px;font-size:12px;font-family:monospace;max-width:80vw;}
   #loading{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#04060d;color:#9fb0d0;z-index:50;font-size:14px;letter-spacing:1px;}
+  #gameOver button:hover{background:#3366cc;border-color:#5599ee;}
   /* External overlay removed — SkyMap is built-in */
 
   /* ===== NIGHT MODE ===== */
@@ -187,6 +189,14 @@
 </head>
 <body>
 <div id="loading">Génération de l'Univers…</div>
+<div id="gameOver" style="position:fixed;inset:0;display:none;z-index:60;background:rgba(0,0,0,0.85);color:#e8efff;text-align:center;justify-content:center;flex-direction:column;font-family:monospace">
+  <div style="font-size:48px;color:#ff4444;margin-bottom:12px;text-shadow:0 0 30px rgba(255,40,40,0.6)"><b>VAISSEAU DÉTRUIT</b></div>
+  <div style="font-size:18px;color:#ffaa44;margin-bottom:6px" id="goScore">Score: 0</div>
+  <div style="font-size:18px;color:#ff8844;margin-bottom:6px" id="goKills">Ennemis détruits: 0</div>
+  <div style="font-size:18px;color:#ffcc44;margin-bottom:20px" id="goWave">Vague: 0</div>
+  <button id="goRestart" style="padding:12px 36px;font-size:18px;font-family:monospace;background:#2255aa;color:#fff;border:2px solid #4488dd;border-radius:6px;cursor:pointer;letter-spacing:1px">RECOMMENCER</button>
+  <div style="font-size:12px;color:#667788;margin-top:16px">Appuyez sur Entrée ou cliquez pour relancer</div>
+</div>
 <div id="errToast"></div>
 <canvas id="allsky"></canvas>
 <div id="tip"></div>
@@ -226,8 +236,8 @@
 <button class="chip" id="uiToggle" title="Masquer / afficher le menu (H)">✖ Menu</button>
 <div id="ui">
   <div class="panel">
-    <h1>🌌 Univers profond — v18</h1>
-    <p class="sub">Notre Univers 3D + <b>SkyMap</b> (700+ étoiles, NGC/IC, planètes, constellations) en vue ciel complète hors-ligne</p>
+    <h1>🌌 Univers profond — v20</h1>
+    <p class="sub">Notre Univers 3D + <b>SkyMap</b> (700+ étoiles, NGC/IC, planètes, constellations) + <b>⚔️ Star Destroyer Impérial</b></p>
     <div class="btnrow">
       <button id="btn-galaxy" class="active">🌌 Galaxie</button>
       <button id="btn-system">🚀 Système solaire</button>
@@ -237,7 +247,7 @@
       <button id="btn-m31">🌀 Andromède</button>
       <button id="btn-cluster">🔭 Amas</button>
       <button id="btn-skymap" class="active">🌠 SkyMap</button>
-      <button id="btn-ship" title="Suivre le vaisseau dans l'Univers — réappuyer pour sauter à l'étape suivante">🛸 Vaisseau</button>
+      <button id="btn-ship" title="Suivre le Star Destroyer — réappuyer pour sauter à l'étape suivante">⚔️ Impérial</button>
     </div>
     <p class="sub" style="margin:2px 0 5px">🛰️ <b>Survol des planètes</b> — la caméra suit la planète, molette pour approcher</p>
     <div class="btnrow" id="planetRow">
@@ -347,8 +357,8 @@ renderer.shadowMap.enabled=!IS_MOBILE; renderer.shadowMap.type=THREE.PCFSoftShad
 /* Une lumiere PONCTUELLE projette sur une carte CUBE : six rendus complets par
    image. Les planetes bougent lentement -> on ne la recalcule qu'une image sur
    six, ce qui est invisible mais rend six fois moins souvent. */
-renderer.shadowMap.autoUpdate=false;
-renderer.toneMapping=THREE.ACESFilmicToneMapping; renderer.toneMappingExposure=0.85;
+renderer.shadowMap.autoUpdate=true;
+renderer.toneMapping=THREE.ACESFilmicToneMapping; renderer.toneMappingExposure=1.1;
 document.body.appendChild(renderer.domElement);
 const maxAniso=renderer.capabilities.getMaxAnisotropy();
 const scene=new THREE.Scene();
@@ -468,7 +478,7 @@ composer.addPass(new OutputPass());
 const controls=new OrbitControls(camera,renderer.domElement);
 controls.enableDamping=true; controls.dampingFactor=0.06;
 controls.minDistance=8; controls.maxDistance=70000;
-const ambient=new THREE.AmbientLight(0x2a3550,0.45);
+const ambient=new THREE.AmbientLight(0x4a5570,0.9);
 scene.add(ambient);
 
 /* ================= HELPERS TEXTURES ================= */
@@ -1802,7 +1812,7 @@ for(let i=0;i<5;i++){ const dir=new THREE.Vector3(rnd()*2-1,(rnd()*2-1)*0.5,rnd(
    L'echelle est calee sur la position du Soleil : 26 000 al du
    centre galactique.
    ========================================================= */
-const SOLAR_POS=new THREE.Vector3(2300,60,-1500);
+const SOLAR_POS=new THREE.Vector3(2300,0,-1500);
 const GAL_LY=SOLAR_POS.length()/26000;                 /* unites par annee-lumiere */
 const _galToCenter=new THREE.Vector3(-SOLAR_POS.x,0,-SOLAR_POS.z).normalize();
 const _galNorth=new THREE.Vector3(0,1,0);
@@ -3296,11 +3306,16 @@ const sunHalo=radialSprite([[0,'rgba(255,244,214,0.30)'],[0.14,'rgba(255,220,160
 sunHalo.scale.set(46,46,1); systemGroup.add(sunHalo);
 
 const sunLight=new THREE.PointLight(0xfff1d6,2600,0,2);
-sunLight.castShadow=true; sunLight.shadow.mapSize.set(1024,1024);
-sunLight.shadow.camera.near=2; sunLight.shadow.camera.far=260; sunLight.shadow.bias=-0.0012;
+sunLight.castShadow=true;
+sunLight.shadow.mapSize.set(2048,2048);  /* higher res for sharp shadows across solar system */
+sunLight.shadow.camera.near=0.5;
+sunLight.shadow.camera.far=300;  /* must cover Neptune at d=112 + margin */
+sunLight.shadow.bias=-0.002;
+sunLight.shadow.normalBias=0.5;
 systemGroup.add(sunLight);
-const fill=new THREE.DirectionalLight(0x36466e,0.3);
-fill.position.set(SOLAR_POS.x,600,SOLAR_POS.z+400); scene.add(fill);
+/* Fill light — very dim, only to prevent pure-black on shadow side */
+const fill=new THREE.DirectionalLight(0x111122,0.05);
+fill.position.set(SOLAR_POS.x,0,SOLAR_POS.z+400); scene.add(fill);
 
 function flareTex(c1,c2){ return canvasTex(256,256,(g)=>{
   const gr=g.createRadialGradient(128,128,0,128,128,128);
@@ -5298,6 +5313,15 @@ const shipHud=document.getElementById('shipHud');
    qui donne un metal credible meme a 2 millions d'annees-lumiere du
    Soleil, sans toucher a l'eclairage du reste de l'Univers.
    ========================================================= */
+/* =========================================================
+   FREE-FLIGHT INPUT — keyboard state + mouse look
+   ========================================================= */
+const KEYS={};
+window.addEventListener('keydown',e=>{KEYS[e.code]=true;
+  if(e.code==='KeyF'&&viewMode==='ship'){SHIP.toggleFreeFlight();e.preventDefault();}
+});
+window.addEventListener('keyup',e=>{KEYS[e.code]=false;});
+
 const SHIP={};
 (function buildShipSystem(){
   /* ---------- points de passage ---------- */
@@ -5360,103 +5384,2559 @@ const SHIP={};
   const WING=new THREE.MeshMatcapMaterial({matcap:matcap('#e2eaff','#3d4a68','rgba(160,140,255,0.6)'),
     side:THREE.DoubleSide});
 
-  /* ---------- LE VAISSEAU ---------- */
+  
+  /* ===========================================================
+     PBR MAP GENERATORS — Normal, Roughness, Metalness
+     from canvas-based height maps for realistic 3D surface relief
+     =========================================================== */
+  /* Convert a greyscale canvas (heightmap) into a normal map canvas */
+  function heightToNormalMap(srcCanvas, strength){
+    const W=srcCanvas.width, H=srcCanvas.height;
+    const c=document.createElement('canvas'); c.width=W; c.height=H;
+    const g=c.getContext('2d');
+    const src=g.getImageData(0,0,W,H);
+    /* We need to read from source canvas */
+    const sg=srcCanvas.getContext('2d');
+    const sData=sg.getImageData(0,0,W,H).data;
+    const out=g.createImageData(W,H);
+    const d=out.data;
+    const s=strength||1.0;
+    const getH=(x,y)=>{
+      x=((x%W)+W)%W; y=((y%H)+H)%H;
+      const i=(y*W+x)*4;
+      return (sData[i]+sData[i+1]+sData[i+2])/(3*255);
+    };
+    for(let y=0;y<H;y++){
+      for(let x=0;x<W;x++){
+        const l=getH(x-1,y), r=getH(x+1,y);
+        const u=getH(x,y-1), d2=getH(x,y+1);
+        const dx=(l-r)*s, dy=(u-d2)*s;
+        const len=Math.sqrt(dx*dx+dy*dy+1);
+        const nx=dx/len, ny=dy/len, nz=1/len;
+        const i=(y*W+x)*4;
+        d[i]  =Math.floor((nx*0.5+0.5)*255);
+        d[i+1]=Math.floor((ny*0.5+0.5)*255);
+        d[i+2]=Math.floor((nz*0.5+0.5)*255);
+        d[i+3]=255;
+      }
+    }
+    g.putImageData(out,0,0);
+    return c;
+  }
+  /* Generate a roughness map from heightmap — raised = smoother (polished metal),
+     recessed = rougher (dirty crevices) */
+  function heightToRoughnessMap(srcCanvas){
+    const W=srcCanvas.width, H=srcCanvas.height;
+    const c=document.createElement('canvas'); c.width=W; c.height=H;
+    const g=c.getContext('2d');
+    const sg=srcCanvas.getContext('2d');
+    const sData=sg.getImageData(0,0,W,H).data;
+    const out=g.createImageData(W,H);
+    const d=out.data;
+    for(let i=0;i<sData.length;i+=4){
+      const h=(sData[i]+sData[i+1]+sData[i+2])/(3*255);
+      /* Higher areas = lower roughness (smoother metal), with variation */
+      const base=0.55-h*0.30;
+      const noise=(Math.random()-0.5)*0.08;
+      const v=Math.max(0.15,Math.min(0.85,base+noise));
+      const c2=Math.floor(v*255);
+      d[i]=c2; d[i+1]=c2; d[i+2]=c2; d[i+3]=255;
+    }
+    g.putImageData(out,0,0);
+    return c;
+  }
+  /* Generate a metalness map — mostly metallic, with slight variation */
+  function makeMetalnessMap(W,H){
+    const c=document.createElement('canvas'); c.width=W; c.height=H;
+    const g=c.getContext('2d');
+    /* Base: mostly metal (bright) */
+    g.fillStyle='#c8c8c8'; g.fillRect(0,0,W,H);
+    const rng=mulberry32(888);
+    /* Slight variation — some areas less metallic (dirt, paint, deposits) */
+    for(let k=0;k<40;k++){
+      const mx=rng()*W, my=rng()*H, mr=30+rng()*80;
+      const gr=g.createRadialGradient(mx,my,0,mx,my,mr);
+      gr.addColorStop(0,'rgba(140,140,140,0.3)');
+      gr.addColorStop(1,'rgba(0,0,0,0)');
+      g.fillStyle=gr; g.fillRect(0,0,W,H);
+    }
+    /* Darker patches near engines (heat damage = less metallic look) */
+    for(let k=0;k<5;k++){
+      const mx=rng()*W, my=H*0.8+rng()*H*0.2, mr=20+rng()*40;
+      const gr=g.createRadialGradient(mx,my,0,mx,my,mr);
+      gr.addColorStop(0,'rgba(100,100,100,0.25)');
+      gr.addColorStop(1,'rgba(0,0,0,0)');
+      g.fillStyle=gr; g.fillRect(0,0,W,H);
+    }
+    return c;
+  }
+
+  /* ===========================================================
+     PROCEDURAL HULL TEXTURE — Cinematic panel detail + greebles
+     =========================================================== */
+  function makeHullTexture(){
+    const W=2048,H=1024;
+    const c=document.createElement('canvas'); c.width=W; c.height=H;
+    const g=c.getContext('2d');
+    /* Base metal grey — BRIGHT imperial tone with gradient */
+    const bg=g.createLinearGradient(0,0,W,H);
+    bg.addColorStop(0,'#b8bcc6'); bg.addColorStop(0.15,'#b0b4be');
+    bg.addColorStop(0.35,'#b4b8c0'); bg.addColorStop(0.5,'#aeb2ba');
+    bg.addColorStop(0.7,'#b2b6be'); bg.addColorStop(0.85,'#acb0b8');
+    bg.addColorStop(1,'#aeb2b8');
+    g.fillStyle=bg; g.fillRect(0,0,W,H);
+    /* Noise grain — metal texture */
+    const img=g.getImageData(0,0,W,H);
+    const rng=mulberry32(42);
+    for(let i=0;i<img.data.length;i+=4){
+      const n=(rng()-0.5)*22;
+      img.data[i]+=n; img.data[i+1]+=n; img.data[i+2]+=n;
+    }
+    g.putImageData(img,0,0);
+
+    /* ===== LAYER 1: Master structural grid — large rectangles ===== */
+    g.strokeStyle='rgba(25,28,38,0.40)'; g.lineWidth=2.5;
+    for(let y=0;y<H;y+=40+Math.floor(rng()*20)){
+      g.beginPath(); g.moveTo(0,y); g.lineTo(W,y); g.stroke();
+    }
+    for(let x=0;x<W;x+=50+Math.floor(rng()*30)){
+      g.beginPath(); g.moveTo(x,0); g.lineTo(x,H); g.stroke();
+    }
+
+    /* ===== LAYER 2: Sub-panel grid — finer lines between master panels ===== */
+    g.strokeStyle='rgba(35,38,48,0.30)'; g.lineWidth=1.0;
+    for(let y=0;y<H;y+=10+Math.floor(rng()*6)){
+      g.beginPath(); g.moveTo(0,y); g.lineTo(W,y); g.stroke();
+    }
+    for(let x=0;x<W;x+=12+Math.floor(rng()*8)){
+      g.beginPath(); g.moveTo(x,0); g.lineTo(x,H); g.stroke();
+    }
+
+    /* ===== LAYER 3: Large raised panel outlines with beveled edge effect ===== */
+    for(let k=0;k<80;k++){
+      const px=rng()*W, py=rng()*H;
+      const pw=60+rng()*200, ph=30+rng()*100;
+      /* Panel shadow */
+      g.strokeStyle='rgba(20,22,30,0.20)'; g.lineWidth=3;
+      g.strokeRect(px,py,pw,ph);
+      /* Panel body — slightly different shade */
+      const pShade=95+Math.floor(rng()*20);
+      g.fillStyle=`rgba(${pShade},${pShade+3},${pShade+8},0.15)`;
+      g.fillRect(px+1,py+1,pw-2,ph-2);
+      /* Top/left highlight edge */
+      g.strokeStyle='rgba(160,165,175,0.18)'; g.lineWidth=1;
+      g.beginPath(); g.moveTo(px,py+ph); g.lineTo(px,py); g.lineTo(px+pw,py); g.stroke();
+      /* Bottom/right shadow edge */
+      g.strokeStyle='rgba(40,42,52,0.12)'; g.lineWidth=1;
+      g.beginPath(); g.moveTo(px+pw,py); g.lineTo(px+pw,py+ph); g.lineTo(px,py+ph); g.stroke();
+    }
+
+    /* ===== LAYER 4: Medium panels — overlapping detail ===== */
+    for(let k=0;k<120;k++){
+      const px=rng()*W, py=rng()*H;
+      const pw=20+rng()*60, ph=12+rng()*40;
+      g.strokeStyle='rgba(45,48,58,0.25)'; g.lineWidth=1.5;
+      g.strokeRect(px,py,pw,ph);
+      /* Inner detail line */
+      if(rng()>0.5){
+        g.strokeStyle='rgba(120,124,132,0.12)'; g.lineWidth=0.5;
+        g.strokeRect(px+2,py+2,pw-4,ph-4);
+      }
+    }
+
+    /* ===== LAYER 5: Greebles — hundreds of tiny raised rectangles ===== */
+    for(let k=0;k<600;k++){
+      const gx=rng()*W, gy=rng()*H;
+      const gw=2+rng()*8, gh=1+rng()*5;
+      const shade=90+Math.floor(rng()*80);
+      /* Body */
+      g.fillStyle=`rgba(${shade},${shade+4},${shade+10},0.45)`;
+      g.fillRect(gx,gy,gw,gh);
+      /* Top highlight */
+      g.fillStyle=`rgba(${shade+45},${shade+50},${shade+58},0.25)`;
+      g.fillRect(gx,gy,gw,1);
+      /* Bottom shadow */
+      g.fillStyle=`rgba(25,28,36,0.20)`;
+      g.fillRect(gx,gy+gh-1,gw,1);
+      /* Right shadow */
+      g.fillStyle=`rgba(25,28,36,0.10)`;
+      g.fillRect(gx+gw-1,gy,1,gh);
+    }
+
+    /* ===== LAYER 6: Horizontal conduits with highlights ===== */
+    for(let k=0;k<40;k++){
+      const py=rng()*H;
+      const shade=95+Math.floor(rng()*35);
+      g.strokeStyle=`rgba(${shade},${shade+4},${shade+10},0.4)`;
+      g.lineWidth=2+rng()*4;
+      g.beginPath();
+      g.moveTo(rng()*W*0.2, py);
+      g.lineTo(rng()*W*0.2+W*0.5, py+(rng()-0.5)*8);
+      g.stroke();
+      /* Highlight on top */
+      g.strokeStyle=`rgba(${shade+50},${shade+55},${shade+65},0.18)`;
+      g.lineWidth=1;
+      g.beginPath();
+      g.moveTo(rng()*W*0.2, py-1);
+      g.lineTo(rng()*W*0.2+W*0.5, py+(rng()-0.5)*8-1);
+      g.stroke();
+      /* Shadow on bottom */
+      g.strokeStyle=`rgba(30,32,40,0.12)`;
+      g.lineWidth=1;
+      g.beginPath();
+      g.moveTo(rng()*W*0.2, py+3);
+      g.lineTo(rng()*W*0.2+W*0.5, py+(rng()-0.5)*8+3);
+      g.stroke();
+    }
+
+    /* ===== LAYER 7: Vertical conduits ===== */
+    for(let k=0;k<20;k++){
+      const px=rng()*W;
+      const shade=90+Math.floor(rng()*30);
+      g.strokeStyle=`rgba(${shade},${shade+3},${shade+8},0.35)`;
+      g.lineWidth=1.5+rng()*2.5;
+      g.beginPath();
+      g.moveTo(px, rng()*H*0.2);
+      g.lineTo(px+(rng()-0.5)*8, rng()*H*0.2+H*0.5);
+      g.stroke();
+      /* Highlight */
+      g.strokeStyle=`rgba(${shade+40},${shade+45},${shade+55},0.12)`;
+      g.lineWidth=0.8;
+      g.beginPath();
+      g.moveTo(px+1, rng()*H*0.2);
+      g.lineTo(px+1+(rng()-0.5)*8, rng()*H*0.2+H*0.5);
+      g.stroke();
+    }
+
+    /* ===== LAYER 8: Weapon mount pads with detail ===== */
+    for(let k=0;k<50;k++){
+      const mx=rng()*W, my=rng()*H;
+      const mw=12+rng()*22, mh=10+rng()*18;
+      /* Outer border */
+      g.fillStyle='rgba(45,48,58,0.45)';
+      g.fillRect(mx,my,mw,mh);
+      g.strokeStyle='rgba(120,125,135,0.3)'; g.lineWidth=1;
+      g.strokeRect(mx,my,mw,mh);
+      /* Inner raised section */
+      g.fillStyle='rgba(80,84,92,0.25)';
+      g.fillRect(mx+2,my+2,mw-4,mh-4);
+      /* Top highlight */
+      g.fillStyle='rgba(150,155,165,0.15)';
+      g.fillRect(mx+2,my+2,mw-4,1);
+      /* Center detail dot */
+      if(mw>16){
+        g.fillStyle='rgba(60,64,74,0.3)';
+        g.fillRect(mx+mw/2-2,my+mh/2-2,4,4);
+      }
+    }
+
+    /* ===== LAYER 9: Circular access hatches ===== */
+    for(let k=0;k<25;k++){
+      const cx=rng()*W, cy=rng()*H, cr=4+rng()*10;
+      g.strokeStyle='rgba(50,54,64,0.30)'; g.lineWidth=1.5;
+      g.beginPath(); g.arc(cx,cy,cr,0,TAU); g.stroke();
+      g.strokeStyle='rgba(130,135,145,0.12)'; g.lineWidth=0.8;
+      g.beginPath(); g.arc(cx,cy,cr-2,0,TAU); g.stroke();
+      /* Cross detail inside hatch */
+      g.strokeStyle='rgba(40,44,54,0.20)'; g.lineWidth=0.6;
+      g.beginPath(); g.moveTo(cx-cr*0.5,cy); g.lineTo(cx+cr*0.5,cy); g.stroke();
+      g.beginPath(); g.moveTo(cx,cy-cr*0.5); g.lineTo(cx,cy+cr*0.5); g.stroke();
+    }
+
+    /* ===== LAYER 10: Ladder runs / maintenance rails ===== */
+    for(let k=0;k<30;k++){
+      const lx=rng()*W, ly=rng()*H;
+      const len=20+rng()*60;
+      const horizontal=rng()>0.4;
+      g.strokeStyle='rgba(70,74,84,0.25)'; g.lineWidth=1.5;
+      if(horizontal){
+        g.beginPath(); g.moveTo(lx,ly); g.lineTo(lx+len,ly); g.stroke();
+        g.beginPath(); g.moveTo(lx,ly+3); g.lineTo(lx+len,ly+3); g.stroke();
+        /* Rungs */
+        for(let r=0;r<len;r+=6+Math.floor(rng()*4)){
+          g.strokeStyle='rgba(60,64,74,0.20)'; g.lineWidth=0.8;
+          g.beginPath(); g.moveTo(lx+r,ly); g.lineTo(lx+r,ly+3); g.stroke();
+        }
+      } else {
+        g.beginPath(); g.moveTo(lx,ly); g.lineTo(lx,ly+len); g.stroke();
+        g.beginPath(); g.moveTo(lx+3,ly); g.lineTo(lx+3,ly+len); g.stroke();
+      }
+    }
+
+    /* ===== LAYER 11: Heat discoloration near engines ===== */
+    for(let k=0;k<10;k++){
+      const sx=rng()*W, sy=H*0.75+rng()*H*0.25;
+      const gr3=g.createRadialGradient(sx,sy,0,sx,sy,25+rng()*40);
+      gr3.addColorStop(0,'rgba(80,60,40,0.12)');
+      gr3.addColorStop(0.5,'rgba(70,50,30,0.06)');
+      gr3.addColorStop(1,'rgba(0,0,0,0)');
+      g.fillStyle=gr3; g.fillRect(0,0,W,H);
+    }
+
+    /* ===== LAYER 12: Weathering stains ===== */
+    for(let k=0;k<25;k++){
+      const wx=rng()*W, wy=rng()*H, wr=50+rng()*100;
+      const gr2=g.createRadialGradient(wx,wy,0,wx,wy,wr);
+      gr2.addColorStop(0,'rgba(30,34,42,0.10)');
+      gr2.addColorStop(0.5,'rgba(30,34,42,0.04)');
+      gr2.addColorStop(1,'rgba(30,34,42,0)');
+      g.fillStyle=gr2; g.fillRect(0,0,W,H);
+    }
+
+    /* ===== LAYER 13: Micro scratches / wear marks ===== */
+    for(let k=0;k<100;k++){
+      const ex=rng()*W, ey=rng()*H;
+      const ew=10+rng()*50;
+      const ea=(rng()-0.5)*0.3;
+      g.strokeStyle=`rgba(${155+Math.floor(rng()*45)},${160+Math.floor(rng()*45)},${170+Math.floor(rng()*45)},0.12)`;
+      g.lineWidth=0.5+rng()*0.5;
+      g.beginPath(); g.moveTo(ex,ey); g.lineTo(ex+Math.cos(ea)*ew,ey+Math.sin(ea)*ew); g.stroke();
+    }
+
+    /* ===== LAYER 14: Color variation patches — warm/cool shifts ===== */
+    for(let k=0;k<15;k++){
+      const px=rng()*W, py=rng()*H, pr=80+rng()*150;
+      const warm=rng()>0.5;
+      const gr2=g.createRadialGradient(px,py,0,px,py,pr);
+      if(warm){
+        gr2.addColorStop(0,'rgba(110,100,90,0.04)');
+        gr2.addColorStop(1,'rgba(0,0,0,0)');
+      } else {
+        gr2.addColorStop(0,'rgba(90,100,115,0.04)');
+        gr2.addColorStop(1,'rgba(0,0,0,0)');
+      }
+      g.fillStyle=gr2; g.fillRect(0,0,W,H);
+    }
+
+    /* ===== LAYER 15: Small rivet dots along panel seams ===== */
+    for(let k=0;k<200;k++){
+      const rx=rng()*W, ry=rng()*H;
+      g.fillStyle='rgba(55,58,68,0.3)';
+      g.fillRect(rx,ry,1,1);
+    }
+
+    const tx=new THREE.CanvasTexture(c); tx.colorSpace=THREE.SRGBColorSpace; tx.anisotropy=maxAniso;
+    return tx;
+  }
+  const hullTex=makeHullTexture();
+  /* Generate PBR maps from hull texture for realistic 3D surface relief */
+  const hullCanvas=hullTex.image;
+  const hullNormalTex=new THREE.CanvasTexture(heightToNormalMap(hullCanvas,2.5));
+  hullNormalTex.colorSpace=THREE.SRGBColorSpace; hullNormalTex.anisotropy=maxAniso;
+  const hullRoughnessTex=new THREE.CanvasTexture(heightToRoughnessMap(hullCanvas));
+  hullRoughnessTex.colorSpace=THREE.SRGBColorSpace; hullRoughnessTex.anisotropy=maxAniso;
+  const hullMetalnessTex=new THREE.CanvasTexture(makeMetalnessMap(hullCanvas.width,hullCanvas.height));
+  hullMetalnessTex.colorSpace=THREE.SRGBColorSpace; hullMetalnessTex.anisotropy=maxAniso;
+  /* Terrace texture — slightly different shade */
+  function makeTerraceTexture(){
+    const W=1024,H=512;
+    const c=document.createElement('canvas'); c.width=W; c.height=H;
+    const g=c.getContext('2d');
+    /* Base — bright grey, matching hull */
+    const bg=g.createLinearGradient(0,0,W*0.3,H);
+    bg.addColorStop(0,'#a4a8b0'); bg.addColorStop(0.5,'#a0a4ac'); bg.addColorStop(1,'#a2a6ae');
+    g.fillStyle=bg; g.fillRect(0,0,W,H);
+    /* Noise */
+    const img=g.getImageData(0,0,W,H);
+    const rng=mulberry32(77);
+    for(let i=0;i<img.data.length;i+=4){
+      const n=(rng()-0.5)*16;
+      img.data[i]+=n; img.data[i+1]+=n; img.data[i+2]+=n;
+    }
+    g.putImageData(img,0,0);
+    /* Structural grid — coarser than hull */
+    g.strokeStyle='rgba(30,34,42,0.45)'; g.lineWidth=1.5;
+    for(let y=0;y<H;y+=18+Math.floor(rng()*8)) { g.beginPath(); g.moveTo(0,y); g.lineTo(W,y); g.stroke(); }
+    for(let x=0;x<W;x+=22+Math.floor(rng()*10)) { g.beginPath(); g.moveTo(x,0); g.lineTo(x,H); g.stroke(); }
+    /* Fine sub-grid */
+    g.strokeStyle='rgba(35,38,48,0.25)'; g.lineWidth=0.6;
+    for(let y=0;y<H;y+=6+Math.floor(rng()*3)) { g.beginPath(); g.moveTo(0,y); g.lineTo(W,y); g.stroke(); }
+    for(let x=0;x<W;x+=7+Math.floor(rng()*4)) { g.beginPath(); g.moveTo(x,0); g.lineTo(x,H); g.stroke(); }
+    /* Raised panels */
+    for(let k=0;k<40;k++){
+      const px=rng()*W, py=rng()*H, pw=30+rng()*80, ph=15+rng()*40;
+      const shade=105+Math.floor(rng()*20);
+      g.fillStyle=`rgba(${shade},${shade+2},${shade+6},0.15)`;
+      g.fillRect(px,py,pw,ph);
+      g.strokeStyle='rgba(50,54,62,0.30)'; g.lineWidth=1.5;
+      g.strokeRect(px,py,pw,ph);
+      g.strokeStyle='rgba(140,145,152,0.10)'; g.lineWidth=0.8;
+      g.beginPath(); g.moveTo(px,py); g.lineTo(px+pw,py); g.stroke();
+      g.beginPath(); g.moveTo(px,py); g.lineTo(px,py+ph); g.stroke();
+    }
+    /* Micro greebles */
+    for(let k=0;k<200;k++){
+      const gx=rng()*W, gy=rng()*H, gw=1.5+rng()*5, gh=1+rng()*3;
+      const shade=80+Math.floor(rng()*40);
+      g.fillStyle=`rgba(${shade},${shade+2},${shade+6},0.40)`;
+      g.fillRect(gx,gy,gw,gh);
+      g.fillStyle=`rgba(${shade+30},${shade+34},${shade+40},0.18)`;
+      g.fillRect(gx,gy,gw,1);
+    }
+    /* Conduits */
+    for(let k=0;k<15;k++){
+      const py=rng()*H;
+      const shade=88+Math.floor(rng()*25);
+      g.strokeStyle=`rgba(${shade},${shade+3},${shade+8},0.35)`;
+      g.lineWidth=1.5+rng()*2;
+      g.beginPath(); g.moveTo(rng()*W*0.2,py); g.lineTo(rng()*W*0.2+W*0.5,py+(rng()-0.5)*6); g.stroke();
+    }
+    /* Weapon/antenna mount pads */
+    for(let k=0;k<18;k++){
+      const mx=rng()*W, my=rng()*H, mw=8+rng()*14, mh=6+rng()*10;
+      g.fillStyle='rgba(55,58,68,0.35)';
+      g.fillRect(mx,my,mw,mh);
+      g.strokeStyle='rgba(110,115,125,0.25)'; g.lineWidth=0.8;
+      g.strokeRect(mx,my,mw,mh);
+      g.fillStyle='rgba(85,88,98,0.20)';
+      g.fillRect(mx+1.5,my+1.5,mw-3,mh-3);
+    }
+    /* Weathering */
+    for(let k=0;k<12;k++){
+      const wx=rng()*W, wy=rng()*H, wr=30+rng()*60;
+      const gr2=g.createRadialGradient(wx,wy,0,wx,wy,wr);
+      gr2.addColorStop(0,'rgba(30,34,42,0.08)');
+      gr2.addColorStop(1,'rgba(0,0,0,0)');
+      g.fillStyle=gr2; g.fillRect(0,0,W,H);
+    }
+    /* Scratch marks */
+    for(let k=0;k<40;k++){
+      const ex=rng()*W, ey=rng()*H, ew=8+rng()*30;
+      g.strokeStyle=`rgba(${140+Math.floor(rng()*30)},${144+Math.floor(rng()*30)},${150+Math.floor(rng()*30)},0.10)`;
+      g.lineWidth=0.5; g.beginPath(); g.moveTo(ex,ey); g.lineTo(ex+ew,ey+(rng()-0.5)*3); g.stroke();
+    }
+    /* Rivet dots */
+    for(let k=0;k<80;k++){
+      g.fillStyle='rgba(50,54,62,0.25)'; g.fillRect(rng()*W,rng()*H,1,1);
+    }
+    const tx=new THREE.CanvasTexture(c); tx.colorSpace=THREE.SRGBColorSpace; tx.anisotropy=maxAniso;
+    return tx;
+  }
+  const terrTex=makeTerraceTexture();
+  /* Terrace PBR maps */
+  const terrCanvas=terrTex.image;
+  const terrNormalTex=new THREE.CanvasTexture(heightToNormalMap(terrCanvas,2.0));
+  terrNormalTex.colorSpace=THREE.SRGBColorSpace; terrNormalTex.anisotropy=maxAniso;
+  /* Bridge / superstructure texture — darker with more contrast */
+  function makeBridgeTexture(){
+    const W=512,H=256;
+    const c=document.createElement('canvas'); c.width=W; c.height=H;
+    const g=c.getContext('2d');
+    g.fillStyle='#909aa6'; g.fillRect(0,0,W,H);
+    const img=g.getImageData(0,0,W,H);
+    const rng=mulberry32(123);
+    for(let i=0;i<img.data.length;i+=4){
+      const n=(rng()-0.5)*18;
+      img.data[i]+=n; img.data[i+1]+=n; img.data[i+2]+=n;
+    }
+    g.putImageData(img,0,0);
+    /* Heavy structural grid */
+    g.strokeStyle='rgba(25,28,38,0.50)'; g.lineWidth=2.0;
+    for(let y=0;y<H;y+=16+Math.floor(rng()*8)) { g.beginPath(); g.moveTo(0,y); g.lineTo(W,y); g.stroke(); }
+    for(let x=0;x<W;x+=20+Math.floor(rng()*10)) { g.beginPath(); g.moveTo(x,0); g.lineTo(x,H); g.stroke(); }
+    /* Sub-grid */
+    g.strokeStyle='rgba(35,38,48,0.28)'; g.lineWidth=0.7;
+    for(let y=0;y<H;y+=5+Math.floor(rng()*3)) { g.beginPath(); g.moveTo(0,y); g.lineTo(W,y); g.stroke(); }
+    for(let x=0;x<W;x+=6+Math.floor(rng()*4)) { g.beginPath(); g.moveTo(x,0); g.lineTo(x,H); g.stroke(); }
+    /* Panels */
+    for(let k=0;k<30;k++){
+      const px=rng()*W, py=rng()*H, pw=25+rng()*60, ph=12+rng()*30;
+      g.strokeStyle='rgba(45,48,58,0.35)'; g.lineWidth=1.2;
+      g.strokeRect(px,py,pw,ph);
+      g.fillStyle='rgba(120,124,132,0.08)'; g.fillRect(px,py,pw,ph);
+    }
+    /* Viewport / window detail rows */
+    for(let k=0;k<6;k++){
+      const wy=30+k*35;
+      g.strokeStyle='rgba(50,55,65,0.4)'; g.lineWidth=1;
+      g.beginPath(); g.moveTo(W*0.1,wy); g.lineTo(W*0.9,wy); g.stroke();
+      for(let x=W*0.12;x<W*0.88;x+=8+rng()*6){
+        g.fillStyle=`rgba(${60+Math.floor(rng()*20)},${70+Math.floor(rng()*15)},${80+Math.floor(rng()*15)},0.35)`;
+        g.fillRect(x,wy-2,4+rng()*3,4);
+        g.strokeStyle='rgba(40,44,52,0.3)'; g.lineWidth=0.5;
+        g.strokeRect(x,wy-2,4+rng()*3,4);
+      }
+    }
+    /* Greebles */
+    for(let k=0;k<150;k++){
+      const gx=rng()*W, gy=rng()*H, gw=2+rng()*6, gh=1+rng()*4;
+      const shade=75+Math.floor(rng()*35);
+      g.fillStyle=`rgba(${shade},${shade+3},${shade+8},0.40)`;
+      g.fillRect(gx,gy,gw,gh);
+      g.fillStyle=`rgba(${shade+30},${shade+35},${shade+42},0.18)`;
+      g.fillRect(gx,gy,gw,1);
+    }
+    /* Weathering */
+    for(let k=0;k<10;k++){
+      const wx=rng()*W, wy=rng()*H, wr=25+rng()*50;
+      const gr2=g.createRadialGradient(wx,wy,0,wx,wy,wr);
+      gr2.addColorStop(0,'rgba(28,32,40,0.10)');
+      gr2.addColorStop(1,'rgba(0,0,0,0)');
+      g.fillStyle=gr2; g.fillRect(0,0,W,H);
+    }
+    const tx=new THREE.CanvasTexture(c); tx.colorSpace=THREE.SRGBColorSpace; tx.anisotropy=maxAniso;
+    return tx;
+  }
+  const bridgeTex=makeBridgeTexture();
+  /* Bridge PBR maps */
+  const bridgeCanvas=bridgeTex.image;
+  const bridgeNormalTex=new THREE.CanvasTexture(heightToNormalMap(bridgeCanvas,2.2));
+  bridgeNormalTex.colorSpace=THREE.SRGBColorSpace; bridgeNormalTex.anisotropy=maxAniso;
+
+/* ---------- LE VAISSEAU : STAR DESTROYER IMPERIAL ---------- */
+  /* Space environment map for PBR metallic reflections — dark space with subtle tones */
+  (function(){
+    const pmrem=new THREE.PMREMGenerator(renderer);
+    pmrem.compileEquirectangularShader();
+    const envScene=new THREE.Scene();
+    /* Slightly brighter ambient for space — helps PBR reflections */
+    envScene.background=new THREE.Color(0x081018);
+    /* A few directional lights to give reflections on hull */
+    envScene.add(new THREE.DirectionalLight(0xeef0f8,0.5));
+    envScene.add(new THREE.AmbientLight(0x556688,0.3));
+    /* Colored point lights to simulate star reflections */
+    const pts=[
+      {c:0xffeedd,p:[5,3,2],i:0.25},
+      {c:0xaabbff,p:[-4,2,-3],i:0.18},
+      {c:0xff8844,p:[3,-2,4],i:0.12},
+      {c:0x66ccff,p:[-2,4,-1],i:0.10},
+    ];
+    for(const {c,p,i} of pts){
+      const l=new THREE.PointLight(c,i,20); l.position.set(...p); envScene.add(l);
+    }
+    /* Small emissive sphere to simulate distant star */
+    const starGeo=new THREE.SphereGeometry(0.5,8,6);
+    const starMat=new THREE.MeshBasicMaterial({color:0xffeedd});
+    const star=new THREE.Mesh(starGeo,starMat);
+    star.position.set(5,3,2); envScene.add(star);
+    const envMap=pmrem.fromScene(envScene,0.04).texture;
+    scene.environment=envMap;
+    pmrem.dispose();
+  })();
+
   const ship=new THREE.Group(); scene.add(ship);
-  const model=new THREE.Group(); ship.add(model);      /* nez vers +Z, longueur 1 */
+  const model=new THREE.Group(); ship.add(model);
+  /* Ship lights — follow the ship, BRIGHT for visible detail */
+  const shipLight=new THREE.DirectionalLight(0xeef0f8,5.0);
+  shipLight.position.set(2,3,4); model.add(shipLight);
+  const shipFill=new THREE.DirectionalLight(0xaabbdd,2.0);
+  shipFill.position.set(-2,-1,-3); model.add(shipFill);
+  /* Rim light — edge definition from behind */
+  const rimLight=new THREE.DirectionalLight(0xbbccee,1.2);
+  rimLight.position.set(0,0.5,-5); model.add(rimLight);
+  /* Ventral light — illuminate underside */
+  const ventLight=new THREE.DirectionalLight(0x99aabb,1.0);
+  ventLight.position.set(0,-3,1); model.add(ventLight);
   const glowMat=(hex,op)=>new THREE.MeshBasicMaterial({color:hex,transparent:true,opacity:op,
     blending:THREE.AdditiveBlending,depthWrite:false,fog:false});
-  const CYAN=0x63e6ff, VIOLET=0xa98bff;
 
-  /* fuselage : fuseau de revolution, effile a l'avant, tronque a la tuyere */
-  (function(){
-    const prof=[];
-    for(let i=0;i<=32;i++){ const u=i/32;
-      const r=0.100*Math.pow(Math.sin(Math.PI*Math.pow(u,0.60)),0.55)*(1-0.32*u)+0.007;
-      prof.push(new THREE.Vector2(Math.max(0.006,r),-0.50+u));
-    }
-    const geo=new THREE.LatheGeometry(prof,64); geo.rotateX(Math.PI/2);
-    model.add(new THREE.Mesh(geo,HULL));
-  })();
+  /* Engine exhaust colors — hot orange/red, NOT cyan */
+  const ENG_ORANGE=0xff5511, ENG_RED=0xcc2200, CYAN=0x63e6ff;
 
-  /* verriere : bulle sombre iridescente sur l'avant */
-  (function(){
-    const geo=new THREE.SphereGeometry(0.058,28,18,0,TAU,0,Math.PI*0.55);
-    geo.scale(1.05,0.78,2.45); geo.translate(0,0.074,0.20);
-    model.add(new THREE.Mesh(geo,new THREE.MeshMatcapMaterial({
-      matcap:matcap('#9fe8ff','#06283c','rgba(120,230,255,0.7)')})));
-  })();
+  /* -- Materials — PBR Standard, BRIGHT imperial grey -- */
+  const HULL_SD=new THREE.MeshStandardMaterial({map:hullTex,color:0xe0e4ee,
+    normalMap:hullNormalTex,normalScale:new THREE.Vector2(1.2,1.2),
+    roughnessMap:hullRoughnessTex,roughness:0.42,
+    metalnessMap:hullMetalnessTex,metalness:0.80,
+    side:THREE.FrontSide,
+    emissive:0x303848,emissiveIntensity:0.06});
+  const TERR=new THREE.MeshStandardMaterial({map:terrTex,color:0xd0d4de,
+    normalMap:terrNormalTex,normalScale:new THREE.Vector2(1.0,1.0),
+    roughness:0.48,metalness:0.78,
+    side:THREE.FrontSide,
+    emissive:0x282c38,emissiveIntensity:0.05});
+  const BRIDGE=new THREE.MeshStandardMaterial({map:bridgeTex,color:0xd0d8e0,
+    normalMap:bridgeNormalTex,normalScale:new THREE.Vector2(1.0,1.0),
+    roughness:0.38,metalness:0.80,
+    side:THREE.FrontSide,
+    emissive:0x2a3040,emissiveIntensity:0.08});
+  const DARK=new THREE.MeshStandardMaterial({color:0x181c24,
+    roughness:0.7,metalness:0.4,side:THREE.FrontSide,
+    emissive:0x080c14,emissiveIntensity:0.03});
+  const HULL_EDGE=new THREE.MeshStandardMaterial({color:0xb0b8c4,
+    roughness:0.40,metalness:0.85,side:THREE.DoubleSide});
 
-  /* liserés de coque : deux traits lumineux du nez a la tuyere */
-  for(const s of [-1,1]){
-    const geo=new THREE.BoxGeometry(0.007,0.005,0.50); geo.translate(s*0.088,0.036,-0.08);
-    model.add(new THREE.Mesh(geo,glowMat(CYAN,0.9)));
-  }
-
-  /* ailes delta en fleche */
+  /* ===========================================================
+     HULL — Flat wedge, sharp nose at +Z (forward).
+     Uses rotateX(PI/2) so shapeY maps to +Z = forward direction.
+     =========================================================== */
   (function(){
     const sh=new THREE.Shape();
-    sh.moveTo(0.035, 0.20); sh.lineTo(0.400,-0.10); sh.lineTo(0.420,-0.20);
-    sh.lineTo(0.090,-0.32); sh.closePath();
-    const geo=new THREE.ExtrudeGeometry(sh,{depth:0.013,bevelEnabled:false});
-    geo.translate(0,0,-0.0065); geo.rotateX(Math.PI/2);   /* envergure X, corde Z */
+    /* Smooth curved outline using bezier */
+    sh.moveTo(0, 0.90);
+    sh.bezierCurveTo(-0.03,0.75, -0.10,0.55, -0.18,0.30);
+    sh.bezierCurveTo(-0.26,0.05, -0.38,-0.15, -0.50,-0.35);
+    sh.lineTo(-0.56,-0.52);
+    sh.lineTo(-0.50,-0.62);
+    sh.bezierCurveTo(-0.44,-0.68, -0.34,-0.72, -0.22,-0.76);
+    sh.bezierCurveTo(-0.12,-0.80, -0.04,-0.82, 0,-0.76);
+    sh.bezierCurveTo(0.04,-0.82, 0.12,-0.80, 0.22,-0.76);
+    sh.bezierCurveTo(0.34,-0.72, 0.44,-0.68, 0.50,-0.62);
+    sh.lineTo(0.56,-0.52);
+    sh.lineTo(0.50,-0.35);
+    sh.bezierCurveTo(0.38,-0.15, 0.26,0.05, 0.18,0.30);
+    sh.bezierCurveTo(0.10,0.55, 0.03,0.75, 0,0.90);
+    sh.closePath();
+    const geo=new THREE.ExtrudeGeometry(sh,{depth:0.070,bevelEnabled:true,
+      bevelThickness:0.010,bevelSize:0.016,bevelSegments:4});
+    geo.rotateX(Math.PI/2);           /* shapeY -> +Z forward */
+    geo.translate(0,0.035,0);         /* center vertically */
+    model.add(new THREE.Mesh(geo,HULL_SD));
+  })();
+
+  /* ===========================================================
+     KEEL — V-shaped ventral hull
+     =========================================================== */
+  (function(){
+    const sh=new THREE.Shape();
+    sh.moveTo(0, 0.76);
+    sh.bezierCurveTo(-0.10,0.50, -0.24,-0.10, -0.34,-0.50);
+    sh.lineTo(0.34,-0.50);
+    sh.bezierCurveTo(0.24,-0.10, 0.10,0.50, 0,0.76);
+    sh.closePath();
+    const geo=new THREE.ExtrudeGeometry(sh,{depth:0.028,bevelEnabled:false});
+    geo.rotateX(Math.PI/2);
+    geo.translate(0,-0.055,0);
+    model.add(new THREE.Mesh(geo,HULL_SD));
+  })();
+
+  /* ===========================================================
+     BRIM TRENCHES — Dark side grooves
+     =========================================================== */
+  for(const side of [-1,1]){
+    (function(){
+      const sh=new THREE.Shape();
+      sh.moveTo(side*0.22, 0.18);
+      sh.lineTo(side*0.50,-0.44);
+      sh.lineTo(side*0.46,-0.46);
+      sh.lineTo(side*0.20, 0.16);
+      sh.closePath();
+      const geo=new THREE.ExtrudeGeometry(sh,{depth:0.020,bevelEnabled:false});
+      geo.rotateX(Math.PI/2);
+      geo.translate(0,0.065,0);
+      model.add(new THREE.Mesh(geo,DARK));
+    })();
+  }
+
+  /* ===========================================================
+     SUPERSTRUCTURE — 7-tier stepped pyramid, rear 60% of hull
+     =========================================================== */
+  function addTerrace(shapeY, depth, ty) {
+    const sh=new THREE.Shape();
+    sh.moveTo(0, shapeY);
+    sh.bezierCurveTo(-0.08,shapeY-0.15, -0.20,-0.18, -0.26,-0.30);
+    sh.lineTo(-0.30,-0.50);
+    sh.lineTo(0.30,-0.50);
+    sh.lineTo(0.26,-0.30);
+    sh.bezierCurveTo(0.20,-0.18, 0.08,shapeY-0.15, 0,shapeY);
+    sh.closePath();
+    const geo=new THREE.ExtrudeGeometry(sh,{depth:depth,bevelEnabled:true,
+      bevelThickness:0.004,bevelSize:0.006,bevelSegments:3});
+    geo.rotateX(Math.PI/2);
+    geo.translate(0,ty,0);
+    model.add(new THREE.Mesh(geo,TERR));
+  }
+  addTerrace( 0.28, 0.032, 0.097);   /* Tier 1 — broadest */
+  addTerrace( 0.14, 0.030, 0.129);   /* Tier 2 */
+  addTerrace( 0.02, 0.028, 0.157);   /* Tier 3 */
+  addTerrace(-0.06, 0.026, 0.183);   /* Tier 4 */
+  addTerrace(-0.13, 0.024, 0.207);   /* Tier 5 */
+  addTerrace(-0.18, 0.022, 0.229);   /* Tier 6 */
+  addTerrace(-0.22, 0.020, 0.249);   /* Tier 7 — bridge base */
+
+  /* ===========================================================
+     BRIDGE TOWER — T-shaped command structure
+     =========================================================== */
+  /* Vertical neck */
+  (function(){
+    const geo=new THREE.BoxGeometry(0.048,0.055,0.085);
+    geo.translate(0,0.272,-0.50);
+    model.add(new THREE.Mesh(geo,BRIDGE));
+  })();
+  /* Horizontal T-bar */
+  (function(){
+    const geo=new THREE.BoxGeometry(0.120,0.018,0.058);
+    geo.translate(0,0.306,-0.50);
+    model.add(new THREE.Mesh(geo,BRIDGE));
+  })();
+  /* Wing plates on T-bar */
+  for(const s of [-1,1]){
+    const geo=new THREE.BoxGeometry(0.005,0.030,0.048);
+    geo.translate(s*0.064,0.310,-0.50);
+    model.add(new THREE.Mesh(geo,BRIDGE));
+  }
+  /* Shield generator domes */
+  for(const s of [-1,1]){
+    const geo=new THREE.SphereGeometry(0.019,16,12);
+    geo.translate(s*0.044,0.326,-0.50);
+    model.add(new THREE.Mesh(geo,BRIDGE));
+  }
+  /* Sensor globes */
+  for(const s of [-1,1]){
+    const geo=new THREE.SphereGeometry(0.009,10,8);
+    geo.translate(s*0.044,0.292,-0.50);
+    model.add(new THREE.Mesh(geo,BRIDGE));
+  }
+  /* Bridge viewport — glowing slit */
+  (function(){
+    const geo=new THREE.BoxGeometry(0.030,0.004,0.004);
+    geo.translate(0,0.276,-0.457);
+    model.add(new THREE.Mesh(geo,glowMat(CYAN,0.92)));
+  })();
+
+  /* ===========================================================
+     VENTRAL BULGE — Solar reactor dome
+     =========================================================== */
+  (function(){
+    const geo=new THREE.SphereGeometry(0.065,18,12,0,TAU,0,Math.PI*0.55);
+    geo.rotateX(Math.PI);
+    geo.translate(0,-0.062,-0.38);
+    model.add(new THREE.Mesh(geo,HULL_SD));
+  })();
+
+  /* ===========================================================
+     VENTRAL HANGAR BAY — recessed illuminated dock under hull
+     =========================================================== */
+  (function(){
+    const hangarMat=new THREE.MeshPhongMaterial({color:0x303848,specular:0x223344,shininess:15,
+      side:THREE.BackSide});
+    const hangarFloor=new THREE.MeshPhongMaterial({color:0x404858,specular:0x334455,shininess:20});
+    const hangarGlow=new THREE.MeshBasicMaterial({color:0x88aacc,transparent:true,opacity:0.35,
+      blending:THREE.NormalBlending,depthWrite:false,fog:false});
+    const hangarBright=new THREE.MeshBasicMaterial({color:0xaaccff,transparent:true,opacity:0.20,
+      blending:THREE.NormalBlending,depthWrite:false,fog:false});
+    const hangarEdgeMat=new THREE.MeshPhongMaterial({color:0x606878,specular:0x445566,shininess:25});
+    /* Hangar cavity — main recessed box */
+    const cavity=new THREE.Mesh(new THREE.BoxGeometry(0.16,0.045,0.22),hangarMat);
+    cavity.position.set(0,-0.048,-0.10);
+    model.add(cavity);
+    /* Hangar floor — lit surface */
+    const floor=new THREE.Mesh(new THREE.BoxGeometry(0.15,0.002,0.21),hangarFloor);
+    floor.position.set(0,-0.068,-0.10);
+    model.add(floor);
+    /* Landing pad markings on floor — concentric circles */
+    for(const zOff of [-0.06,-0.14]){
+      const padRing=new THREE.Mesh(new THREE.RingGeometry(0.018,0.022,16),
+        new THREE.MeshBasicMaterial({color:0x556688,transparent:true,opacity:0.25,
+          blending:THREE.NormalBlending,side:THREE.DoubleSide,depthWrite:false}));
+      padRing.rotation.x=-Math.PI/2;
+      padRing.position.set(0,-0.067,zOff);
+      model.add(padRing);
+    }
+    /* Inner walls — side panels */
     for(const s of [-1,1]){
-      const w=new THREE.Mesh(geo.clone(),WING); w.scale.x=s; w.position.y=-0.012; model.add(w);
-      /* bord d'attaque incandescent */
-      const eg=new THREE.BoxGeometry(0.008,0.006,0.472);
-      eg.rotateY(s*2.259); eg.translate(s*0.2175,-0.012,0.05);
-      model.add(new THREE.Mesh(eg,glowMat(VIOLET,0.8)));
+      const wall=new THREE.Mesh(new THREE.BoxGeometry(0.003,0.040,0.20),hangarEdgeMat);
+      wall.position.set(s*0.078,-0.048,-0.10);
+      model.add(wall);
+    }
+    /* Back wall */
+    const backWall=new THREE.Mesh(new THREE.BoxGeometry(0.16,0.040,0.003),hangarEdgeMat);
+    backWall.position.set(0,-0.048,-0.208);
+    model.add(backWall);
+    /* Front opening frame — thick edges */
+    for(const s of [-1,1]){
+      const pillar=new THREE.Mesh(new THREE.BoxGeometry(0.006,0.048,0.004),hangarEdgeMat);
+      pillar.position.set(s*0.078,-0.046,0.002);
+      model.add(pillar);
+    }
+    const topBeam=new THREE.Mesh(new THREE.BoxGeometry(0.164,0.005,0.004),hangarEdgeMat);
+    topBeam.position.set(0,-0.024,0.002);
+    model.add(topBeam);
+    const bottomBeam=new THREE.Mesh(new THREE.BoxGeometry(0.164,0.004,0.004),hangarEdgeMat);
+    bottomBeam.position.set(0,-0.069,0.002);
+    model.add(bottomBeam);
+    /* Overhead ceiling lights — bright strips inside hangar */
+    for(let k=0;k<5;k++){
+      const z=-0.020-k*0.044;
+      const light=new THREE.Mesh(new THREE.BoxGeometry(0.12,0.002,0.012),hangarGlow);
+      light.position.set(0,-0.026,z);
+      model.add(light);
+    }
+    /* Side wall light strips */
+    for(const s of [-1,1]){
+      for(let k=0;k<4;k++){
+        const z=-0.040-k*0.044;
+        const wl=new THREE.Mesh(new THREE.BoxGeometry(0.002,0.006,0.030),hangarBright);
+        wl.position.set(s*0.076,-0.048,z);
+        model.add(wl);
+      }
+    }
+    /* Structural cross-beams across ceiling */
+    for(let k=0;k<3;k++){
+      const z=-0.050-k*0.055;
+      const beam=new THREE.Mesh(new THREE.BoxGeometry(0.15,0.003,0.003),hangarEdgeMat);
+      beam.position.set(0,-0.025,z);
+      model.add(beam);
+    }
+    /* Ambient glow fill — soft light inside cavity */
+    const ambientGlow=new THREE.Mesh(new THREE.BoxGeometry(0.13,0.030,0.18),hangarBright);
+    ambientGlow.position.set(0,-0.050,-0.10);
+    model.add(ambientGlow);
+    /* Tiny TIE fighters parked inside — silhouettes */
+    for(const zOff of [-0.06,-0.10,-0.14]){
+      for(const xOff of [-0.035,0.035]){
+        const tieBody=new THREE.Mesh(new THREE.SphereGeometry(0.004,6,4),
+          new THREE.MeshBasicMaterial({color:0x1a1a2a}));
+        tieBody.position.set(xOff,-0.062,zOff);
+        model.add(tieBody);
+        /* Tiny wing panels */
+        for(const wx of [-0.008,0.008]){
+          const wing=new THREE.Mesh(new THREE.CircleGeometry(0.006,6),
+            new THREE.MeshBasicMaterial({color:0x14141e,side:THREE.DoubleSide}));
+          wing.position.set(xOff+wx,-0.062,zOff);
+          wing.rotation.y=Math.PI/2;
+          model.add(wing);
+        }
+      }
+    }
+    /* Hangar exterior door frame — raised strip on hull bottom */
+    const doorFrame=new THREE.Mesh(new THREE.BoxGeometry(0.17,0.004,0.006),
+      new THREE.MeshPhongMaterial({color:0x707888,specular:0x556677,shininess:20}));
+    doorFrame.position.set(0,-0.035,0.005);
+    model.add(doorFrame);
+  })();
+
+  /* ===========================================================
+     EDGE TRIM — Raised strips along hull edges and tier borders
+     =========================================================== */
+  (function(){
+    const trimMat=new THREE.MeshPhongMaterial({color:0x787e8a,specular:0x445566,shininess:20});
+    const trimDark=new THREE.MeshPhongMaterial({color:0x585e6a,specular:0x334455,shininess:12});
+    /* Main hull brim edge — raised strip along both sides */
+    for(const side of [-1,1]){
+      const pts=[];
+      for(let i=0;i<=40;i++){
+        const t=i/40;
+        const z=0.90-t*1.70;
+        let hw;
+        if(z>0.65) hw=0.05*z/0.90;
+        else if(z>-0.48) hw=0.08+z*0.48;
+        else hw=0.52+z*0.04;
+        pts.push(new THREE.Vector3(side*hw,0.058,z));
+      }
+      const geo=new THREE.BufferGeometry().setFromPoints(pts);
+      model.add(new THREE.Line(geo,new THREE.LineBasicMaterial({color:0x8899aa,transparent:true,opacity:0.3})));
+      /* Raised edge trim */
+      for(let i=0;i<pts.length-1;i++){
+        const p1=pts[i], p2=pts[i+1];
+        const mid=new THREE.Vector3().addVectors(p1,p2).multiplyScalar(0.5);
+        const dir=new THREE.Vector3().subVectors(p2,p1);
+        const len=dir.length();
+        const trim=new THREE.Mesh(new THREE.BoxGeometry(0.002,0.003,len),trimMat);
+        trim.position.copy(mid);
+        trim.lookAt(p2);
+        model.add(trim);
+      }
+    }
+    /* Tier edge trim strips — raised detail on each terrace edge */
+    for(const ty of [0.097,0.129,0.157,0.183,0.207,0.229,0.249]){
+      for(const side of [-1,1]){
+        const pts=[];
+        for(let i=0;i<=20;i++){
+          const t=i/20;
+          const z=-0.50+t*0.70;
+          let hw;
+          if(z>-0.48) hw=0.08+z*0.48;
+          else hw=0.52+z*0.04;
+          pts.push(new THREE.Vector3(side*hw*0.85,ty+0.002,z));
+        }
+        /* Inner highlight line */
+        const hlPts=pts.map(p=>new THREE.Vector3(p.x*0.98,p.y+0.002,p.z));
+        const hlGeo=new THREE.BufferGeometry().setFromPoints(hlPts);
+        model.add(new THREE.Line(hlGeo,new THREE.LineBasicMaterial({color:0xaab0bc,transparent:true,opacity:0.15})));
+      }
+    }
+    /* Keel edge trim — bottom hull ridge lines */
+    for(const side of [-1,1]){
+      const pts=[];
+      for(let i=0;i<=20;i++){
+        const t=i/20;
+        const z=0.76-t*1.26;
+        const x=side*(0.34*t);
+        pts.push(new THREE.Vector3(x,-0.055,z));
+      }
+      const geo=new THREE.BufferGeometry().setFromPoints(pts);
+      model.add(new THREE.Line(geo,new THREE.LineBasicMaterial({color:0x7788aa,transparent:true,opacity:0.2})));
+    }
+    /* Nose edge highlight — forward taper accent */
+    for(const side of [-1,1]){
+      const pts=[];
+      for(let i=0;i<=15;i++){
+        const t=i/15;
+        const z=0.90-t*0.40;
+        const x=side*(0.03+0.15*t);
+        pts.push(new THREE.Vector3(x,0.058,z));
+      }
+      const geo=new THREE.BufferGeometry().setFromPoints(pts);
+      model.add(new THREE.Line(geo,new THREE.LineBasicMaterial({color:0x99aabb,transparent:true,opacity:0.2})));
     }
   })();
 
-  /* nacelles de distorsion : deux fuseaux sur pylones, ceints d'anneaux */
+  /* ===========================================================
+     REAR HULL PLATING — Structural detail around engine cluster
+     =========================================================== */
+  (function(){
+    const rearMat=new THREE.MeshPhongMaterial({color:0x808898,specular:0x556677,shininess:25});
+    const rearDark=new THREE.MeshPhongMaterial({color:0x505868,specular:0x334455,shininess:12});
+    const rearGlow=new THREE.MeshBasicMaterial({color:0x4466aa,transparent:true,opacity:0.3,
+      blending:THREE.AdditiveBlending,depthWrite:false,fog:false});
+    /* Rear hull plate — sits FORWARD of engine nozzles */
+    const rearPlate=new THREE.Mesh(new THREE.BoxGeometry(0.80,0.060,0.006),rearMat);
+    rearPlate.position.set(0,-0.010,-0.68); model.add(rearPlate);
+    /* Structural ribs — vertical reinforcements across rear plate */
+    for(let k=0;k<12;k++){
+      const x=-0.36+k*0.065;
+      const rib=new THREE.Mesh(new THREE.BoxGeometry(0.003,0.055,0.010),rearDark);
+      rib.position.set(x,-0.010,-0.737); model.add(rib);
+    }
+    /* Horizontal cross-braces */
+    for(const dy of [-0.015,0.010]){
+      const brace=new THREE.Mesh(new THREE.BoxGeometry(0.76,0.003,0.008),rearDark);
+      brace.position.set(0,-0.010+dy,-0.736); model.add(brace);
+    }
+    /* Heat vent slits — glowing lines between ribs */
+    for(let k=0;k<8;k++){
+      const x=-0.28+k*0.08;
+      const vent=new THREE.Mesh(new THREE.BoxGeometry(0.040,0.001,0.005),rearGlow);
+      vent.position.set(x,0.018,-0.744); model.add(vent);
+    }
+    /* Access hatches — circles on rear plate */
+    for(const s of [-1,1]){
+      for(let k=0;k<3;k++){
+        const x=s*0.12+k*s*0.08;
+        const hatch=new THREE.Mesh(new THREE.TorusGeometry(0.010,0.0015,6,16),rearDark);
+        hatch.rotation.x=Math.PI/2;
+        hatch.position.set(x,-0.015,-0.744); model.add(hatch);
+      }
+    }
+    /* Fuel conduit runs along rear plate */
+    for(const s of [-1,1]){
+      const conduit=new THREE.Mesh(new THREE.CylinderGeometry(0.002,0.002,0.70,6),
+        new THREE.MeshPhongMaterial({color:0x606878,specular:0x445566,shininess:20}));
+      conduit.rotation.z=Math.PI/2;
+      conduit.position.set(0,0.020*s,-0.738); model.add(conduit);
+    }
+    /* Heat shield tiles — grid of small rectangles around nozzles */
+    const enginePositions_=[
+      [0,-0.025,-0.74,0.034],
+      [-0.11,-0.025,-0.74,0.026],
+      [0.11,-0.025,-0.74,0.026],
+      [-0.22,-0.030,-0.70,0.013],
+      [-0.16,-0.030,-0.70,0.013],
+      [0.16,-0.030,-0.70,0.013],
+      [0.22,-0.030,-0.70,0.013],
+    ];
+    for(const [ex,ey,ez,er] of enginePositions_){
+      /* Circular heat shield ring around each nozzle */
+      const shield=new THREE.Mesh(new THREE.TorusGeometry(er*1.8,0.003,6,24),
+        new THREE.MeshPhongMaterial({color:0x707888,specular:0x556677,shininess:20}));
+      shield.rotation.x=Math.PI/2;
+      shield.position.set(ex,ey,ez-0.001); model.add(shield);
+      /* Radiator fins around nozzle — thin protruding plates */
+      for(let a=0;a<8;a++){
+        const ang=a/8*TAU;
+        const fx=Math.cos(ang)*er*1.6;
+        const fy=Math.sin(ang)*er*1.6;
+        const fin=new THREE.Mesh(new THREE.BoxGeometry(0.001,0.012,0.006),rearDark);
+        fin.position.set(ex+fx,ey+fy,ez-0.006);
+        fin.rotation.z=ang; model.add(fin);
+      }
+    }
+  })();
+
+  /* ===========================================================
+     ENGINES — Multi-stage bell nozzles with real rocket detail
+     =========================================================== */
   const rings=[];
-  for(const s of [-1,1]){
-    const pyl=new THREE.BoxGeometry(0.16,0.014,0.055); pyl.translate(s*0.26,-0.040,-0.13);
-    model.add(new THREE.Mesh(pyl,HULL));
-    const nac=THREE.CapsuleGeometry
-      ? new THREE.CapsuleGeometry(0.026,0.20,6,16)
-      : new THREE.CylinderGeometry(0.026,0.026,0.24,16);
-    nac.rotateX(Math.PI/2); nac.translate(s*0.345,-0.072,-0.10);
-    model.add(new THREE.Mesh(nac,HULL));
-    const rg=new THREE.TorusGeometry(0.052,0.007,10,40);
-    const r1=new THREE.Mesh(rg,glowMat(CYAN,0.95));   r1.position.set(s*0.345,-0.072,-0.00);
+  const enginePositions=[
+    [0,     -0.025, -0.84, 0.034],
+    [-0.11, -0.025, -0.84, 0.026],
+    [0.11,  -0.025, -0.84, 0.026],
+    [-0.22, -0.030, -0.80, 0.013],
+    [-0.16, -0.030, -0.80, 0.013],
+    [0.16,  -0.030, -0.80, 0.013],
+    [0.22,  -0.030, -0.80, 0.013],
+  ];
+  for(const [ex,ey,ez,er] of enginePositions){
+    const isMain=er>0.020;
+    /* Engine mounting tube — extends from rear plate to nozzle */
+    const tubeLen=Math.abs(ez+0.68);
+    const tube=new THREE.CylinderGeometry(er*1.45,er*1.50,tubeLen,24,1,true);
+    tube.rotateX(Math.PI/2); tube.translate(ex,ey,ez+tubeLen/2);
+    model.add(new THREE.Mesh(tube,new THREE.MeshPhongMaterial({color:0x505868,
+      specular:0x334455,shininess:15,side:THREE.DoubleSide})));
+    /* Mounting flange ring at rear plate */
+    const flange=new THREE.Mesh(new THREE.TorusGeometry(er*1.55,0.003,6,24),
+      new THREE.MeshPhongMaterial({color:0x707888,specular:0x556677,shininess:20}));
+    flange.rotation.x=Math.PI/2;
+    flange.position.set(ex,ey,ez+tubeLen); model.add(flange);
+    /* Outer nozzle bell — wide exit */
+    const noz1=new THREE.CylinderGeometry(er*1.20,er*1.45,0.055,28);
+    noz1.rotateX(Math.PI/2); noz1.translate(ex,ey,ez);
+    model.add(new THREE.Mesh(noz1,DARK));
+    /* Mid nozzle section — constrictor */
+    const noz2=new THREE.CylinderGeometry(er*0.85,er*1.15,0.030,24);
+    noz2.rotateX(Math.PI/2); noz2.translate(ex,ey,ez+0.025);
+    model.add(new THREE.Mesh(noz2,DARK));
+    /* Inner throat — narrowest point */
+    const throat=new THREE.CylinderGeometry(er*0.70,er*0.85,0.015,20);
+    throat.rotateX(Math.PI/2); throat.translate(ex,ey,ez+0.042);
+    model.add(new THREE.Mesh(throat,DARK));
+    /* Nozzle interior — glowing hot orange/red inside (BackSide visible) */
+    const inner=new THREE.CylinderGeometry(er*0.95,er*1.10,0.048,22);
+    inner.rotateX(Math.PI/2); inner.translate(ex,ey,ez+0.004);
+    model.add(new THREE.Mesh(inner,new THREE.MeshBasicMaterial({color:0xff7733,
+      transparent:true,opacity:0.35,side:THREE.BackSide,fog:false})));
+    /* Deep interior glow — hot white */
+    const deepInner=new THREE.CylinderGeometry(er*0.60,er*0.70,0.030,16);
+    deepInner.rotateX(Math.PI/2); deepInner.translate(ex,ey,ez+0.010);
+    model.add(new THREE.Mesh(deepInner,new THREE.MeshBasicMaterial({color:0xffddaa,
+      transparent:true,opacity:0.25,side:THREE.BackSide,fog:false})));
+    /* Nozzle exit ring — glowing lip */
+    const rg=new THREE.TorusGeometry(er*1.22,er*0.08,8,28);
+    const r1=new THREE.Mesh(rg,glowMat(ENG_ORANGE,0.90));
+    r1.position.set(ex,ey,ez-0.005);
     model.add(r1); rings.push(r1);
-    const r2=new THREE.Mesh(rg,glowMat(VIOLET,0.70)); r2.position.set(s*0.345,-0.072,-0.19);
-    r2.scale.setScalar(0.84); model.add(r2); rings.push(r2);
+    /* Outer lip ring — metallic */
+    const rg2=new THREE.TorusGeometry(er*1.45,er*0.05,6,24);
+    const r2=new THREE.Mesh(rg2,new THREE.MeshPhongMaterial({color:0x606878,specular:0x445566,shininess:20}));
+    r2.position.set(ex,ey,ez+0.025); model.add(r2);
+    /* Reinforcement bands — toroidal rings along nozzle length */
+    for(let b=0;b<3;b++){
+      const bZ=ez+0.010+b*0.012;
+      const bR=er*(1.15-b*0.12);
+      const band=new THREE.Mesh(new THREE.TorusGeometry(bR,0.0015,6,20),
+        new THREE.MeshPhongMaterial({color:0x707888,specular:0x556677,shininess:25}));
+      band.rotation.x=Math.PI/2;
+      band.position.set(ex,ey,bZ); model.add(band);
+    }
+    /* Support struts inside nozzle — radial vanes */
+    if(isMain){
+      for(let a=0;a<8;a++){
+        const ang=a/8*TAU;
+        const sx=Math.cos(ang)*er*0.5, sy=Math.sin(ang)*er*0.5;
+        const strut=new THREE.Mesh(new THREE.BoxGeometry(er*0.06,0.001,0.001),
+          new THREE.MeshPhongMaterial({color:0x505868,specular:0x334455,shininess:12}));
+        strut.position.set(ex+sx,ey+sy,ez+0.018);
+        strut.rotation.z=ang; model.add(strut);
+      }
+    }
+    /* Turbopump housing — small cylinder beside nozzle */
+    if(isMain){
+      const tpHousing=new THREE.Mesh(new THREE.CylinderGeometry(er*0.25,er*0.25,0.018,10),
+        new THREE.MeshPhongMaterial({color:0x707888,specular:0x556677,shininess:20}));
+      tpHousing.position.set(ex+er*1.6,ey-er*0.5,ez+0.010); model.add(tpHousing);
+      /* Fuel feed pipe from turbopump to nozzle */
+      const pipePts=[
+        new THREE.Vector3(ex+er*1.6,ey-er*0.5,ez+0.010),
+        new THREE.Vector3(ex+er*1.2,ey-er*0.3,ez+0.005),
+        new THREE.Vector3(ex+er*0.9,ey,ez),
+      ];
+      const pipeGeo=new THREE.BufferGeometry().setFromPoints(pipePts);
+      model.add(new THREE.Line(pipeGeo,new THREE.LineBasicMaterial({color:0x606878})));
+    }
+    /* Heat exchanger ring — tubing around nozzle exterior */
+    for(let t=0;t<12;t++){
+      const ang=t/12*TAU;
+      const tR=er*1.35;
+      const tx=Math.cos(ang)*tR+ex;
+      const ty=Math.sin(ang)*tR+ey;
+      const bead=new THREE.Mesh(new THREE.SphereGeometry(0.001,4,3),
+        new THREE.MeshPhongMaterial({color:0x808898,specular:0x667788,shininess:25}));
+      bead.position.set(tx,ty,ez+0.035); model.add(bead);
+    }
   }
 
-  /* tuyeres et panaches : trois cones additifs qui s'allongent avec la poussee */
-  /* chaque tuyere est posee sur SA structure : la centrale au cul du fuselage,
-     les laterales au cul des nacelles */
-  const plumes=[], NOZ=[[0,0.010,1.00,-0.500],
-                        [-0.345,-0.072,0.60,-0.235],
-                        [ 0.345,-0.072,0.60,-0.235]];
-  for(const [nx,ny,k,nz] of NOZ){
-    const noz=new THREE.CylinderGeometry(0.030*k,0.037*k,0.05,20);
-    noz.rotateX(Math.PI/2); noz.translate(nx,ny,nz);
-    model.add(new THREE.Mesh(noz,HULL));
-    const cg=new THREE.ConeGeometry(0.030*k,0.52,20,1,true);
-    cg.rotateX(-Math.PI/2); cg.translate(nx,ny,nz-0.31);
-    const pm=glowMat(0x8fd8ff,0.5); pm.side=THREE.DoubleSide;
-    const p=new THREE.Mesh(cg,pm); model.add(p); plumes.push(p);
-    const gs=new THREE.Sprite(new THREE.SpriteMaterial({map:softTex,color:0x9fe0ff,
-      transparent:true,opacity:0.85,blending:THREE.AdditiveBlending,depthWrite:false,fog:false}));
-    gs.position.set(nx,ny,nz-0.03); gs.scale.setScalar(0.20*k+0.10); model.add(gs);
+  /* ===========================================================
+     EXHAUST PLUMES — Realistic multi-layer rocket exhaust
+     Elongated like real rocket engines
+     =========================================================== */
+  const plumes=[];
+  /* Exhaust glow texture — hot core with realistic falloff */
+  const exhaustTex=canvasTex(256,256,(g)=>{
+    const gr=g.createRadialGradient(128,128,0,128,128,128);
+    gr.addColorStop(0,'rgba(255,255,240,1)');
+    gr.addColorStop(0.05,'rgba(255,240,200,0.98)');
+    gr.addColorStop(0.10,'rgba(255,200,80,0.90)');
+    gr.addColorStop(0.20,'rgba(255,140,30,0.70)');
+    gr.addColorStop(0.35,'rgba(255,80,10,0.40)');
+    gr.addColorStop(0.55,'rgba(200,35,5,0.15)');
+    gr.addColorStop(0.75,'rgba(120,15,5,0.05)');
+    gr.addColorStop(1,'rgba(40,5,0,0)');
+    g.fillStyle=gr; g.fillRect(0,0,256,256);
+  });
+  /* Mach diamond texture — bright shock compression rings */
+  const machTex=canvasTex(128,128,(g)=>{
+    const gr=g.createRadialGradient(64,64,0,64,64,64);
+    gr.addColorStop(0,'rgba(220,230,255,0.95)');
+    gr.addColorStop(0.12,'rgba(200,210,255,0.7)');
+    gr.addColorStop(0.28,'rgba(255,220,150,0.4)');
+    gr.addColorStop(0.50,'rgba(255,120,40,0.12)');
+    gr.addColorStop(1,'rgba(0,0,0,0)');
+    g.fillStyle=gr; g.fillRect(0,0,128,128);
+  });
+  /* Shock diamond ring texture — elongated torus-like ring */
+  const shockRingTex=canvasTex(128,128,(g)=>{
+    const gr=g.createRadialGradient(64,64,20,64,64,60);
+    gr.addColorStop(0,'rgba(0,0,0,0)');
+    gr.addColorStop(0.5,'rgba(180,200,255,0.5)');
+    gr.addColorStop(0.65,'rgba(220,230,255,0.8)');
+    gr.addColorStop(0.80,'rgba(180,200,255,0.4)');
+    gr.addColorStop(1,'rgba(0,0,0,0)');
+    g.fillStyle=gr; g.fillRect(0,0,128,128);
+  });
+  for(const [ex,ey,ez,er] of enginePositions){
+    const k=er/0.028;
+    const isMain=k>1.5;
+
+    /* --- LAYER 1: Outer sheath — large, dim, reddish haze --- */
+    const outerLen=1.60*k;
+    const outerGeo=new THREE.ConeGeometry(er*2.2,outerLen,22,1,true);
+    outerGeo.rotateX(Math.PI/2);
+    outerGeo.translate(0,0,outerLen/2);
+    outerGeo.translate(ex,ey,ez);
+    const outerMat=new THREE.MeshBasicMaterial({color:0xcc4411,transparent:true,
+      opacity:0.08,blending:THREE.AdditiveBlending,depthWrite:false,side:THREE.DoubleSide,fog:false});
+    model.add(new THREE.Mesh(outerGeo,outerMat));
+
+    /* --- LAYER 2: Secondary cone — warm orange, medium length --- */
+    const secLen=1.20*k;
+    const secGeo=new THREE.ConeGeometry(er*1.6,secLen,20,1,true);
+    secGeo.rotateX(Math.PI/2);
+    secGeo.translate(0,0,secLen/2);
+    secGeo.translate(ex,ey,ez);
+    const secMat=new THREE.MeshBasicMaterial({color:0xff6622,transparent:true,
+      opacity:0.18,blending:THREE.AdditiveBlending,depthWrite:false,side:THREE.DoubleSide,fog:false});
+    model.add(new THREE.Mesh(secGeo,secMat));
+
+    /* --- LAYER 3: Main exhaust cone — bright orange/yellow --- */
+    const mainLen=0.85*k;
+    const mainGeo=new THREE.ConeGeometry(er*1.15,mainLen,18,1,true);
+    mainGeo.rotateX(Math.PI/2);
+    mainGeo.translate(0,0,mainLen/2);
+    mainGeo.translate(ex,ey,ez);
+    const mainMat=new THREE.MeshBasicMaterial({color:ENG_ORANGE,transparent:true,
+      opacity:0.50,blending:THREE.AdditiveBlending,depthWrite:false,side:THREE.DoubleSide,fog:false});
+    const mainP=new THREE.Mesh(mainGeo,mainMat); model.add(mainP); plumes.push(mainP);
+
+    /* --- LAYER 4: Hot core — white-blue narrow cone --- */
+    const coreLen=0.55*k;
+    const coreGeo=new THREE.ConeGeometry(er*0.45,coreLen,14,1,true);
+    coreGeo.rotateX(Math.PI/2);
+    coreGeo.translate(0,0,coreLen/2);
+    coreGeo.translate(ex,ey,ez);
+    const coreMat=new THREE.MeshBasicMaterial({color:0xffeedd,transparent:true,
+      opacity:0.75,blending:THREE.AdditiveBlending,depthWrite:false,side:THREE.DoubleSide,fog:false});
+    model.add(new THREE.Mesh(coreGeo,coreMat));
+
+    /* --- LAYER 5: Innermost white-hot needle --- */
+    const needleLen=0.30*k;
+    const needleGeo=new THREE.ConeGeometry(er*0.15,needleLen,8,1,true);
+    needleGeo.rotateX(Math.PI/2);
+    needleGeo.translate(0,0,needleLen/2);
+    needleGeo.translate(ex,ey,ez);
+    model.add(new THREE.Mesh(needleGeo,new THREE.MeshBasicMaterial({color:0xffffff,
+      transparent:true,opacity:0.9,blending:THREE.AdditiveBlending,depthWrite:false,side:THREE.DoubleSide,fog:false})));
+
+    /* --- LAYER 6: Nozzle glow ball — white-hot at exit plane --- */
+    const glowBall=new THREE.Mesh(new THREE.SphereGeometry(er*0.85,12,10),
+      new THREE.MeshBasicMaterial({color:0xffeecc,transparent:true,
+        opacity:0.95,blending:THREE.AdditiveBlending,depthWrite:false,fog:false}));
+    glowBall.position.set(ex,ey,ez-0.002);
+    model.add(glowBall);
+
+    /* --- LAYER 7: Mach diamonds — shock compression rings --- */
+    if(isMain){
+      for(let d=0;d<5;d++){
+        const dPos=ez-0.08*k-d*0.10*k;
+        const dScale=er*(0.40-d*0.05);
+        const diamond=new THREE.Sprite(new THREE.SpriteMaterial({map:machTex,
+          transparent:true,opacity:0.75-d*0.12,blending:THREE.AdditiveBlending,depthWrite:false,fog:false}));
+        diamond.position.set(ex,ey,dPos);
+        diamond.scale.setScalar(dScale*6);
+        model.add(diamond);
+        /* Shock ring around each diamond */
+        if(d<3){
+          const ring=new THREE.Sprite(new THREE.SpriteMaterial({map:shockRingTex,
+            transparent:true,opacity:0.4-d*0.1,blending:THREE.AdditiveBlending,depthWrite:false,fog:false}));
+          ring.position.set(ex,ey,dPos-0.01*k);
+          ring.scale.setScalar(dScale*8);
+          model.add(ring);
+        }
+      }
+    } else {
+      /* Secondary engines get fewer diamonds */
+      for(let d=0;d<2;d++){
+        const dPos=ez-0.06*k-d*0.08*k;
+        const dScale=er*(0.35-d*0.06);
+        const diamond=new THREE.Sprite(new THREE.SpriteMaterial({map:machTex,
+          transparent:true,opacity:0.6-d*0.15,blending:THREE.AdditiveBlending,depthWrite:false,fog:false}));
+        diamond.position.set(ex,ey,dPos);
+        diamond.scale.setScalar(dScale*5);
+        model.add(diamond);
+      }
+    }
+
+    /* --- LAYER 8: Long exhaust trail — very elongated dim cone --- */
+    const trailLen=2.00*k;
+    const trailGeo=new THREE.ConeGeometry(er*0.7,trailLen,10,1,true);
+    trailGeo.rotateX(Math.PI/2);
+    trailGeo.translate(0,0,trailLen/2+mainLen*0.7);
+    trailGeo.translate(ex,ey,ez);
+    const trailMat=new THREE.MeshBasicMaterial({color:0xff5511,transparent:true,
+      opacity:0.06,blending:THREE.AdditiveBlending,depthWrite:false,side:THREE.DoubleSide,fog:false});
+    model.add(new THREE.Mesh(trailGeo,trailMat));
+
+    /* --- LAYER 9: Hot gas halo — lateral glow around exhaust --- */
+    const haloLen=0.60*k;
+    const haloGeo=new THREE.CylinderGeometry(er*1.8,er*0.3,haloLen,16,1,true);
+    haloGeo.rotateX(Math.PI/2);
+    haloGeo.translate(0,0,haloLen/2+0.02);
+    haloGeo.translate(ex,ey,ez);
+    model.add(new THREE.Mesh(haloGeo,new THREE.MeshBasicMaterial({color:0xff8833,
+      transparent:true,opacity:0.05,blending:THREE.AdditiveBlending,depthWrite:false,side:THREE.DoubleSide,fog:false})));
+
+    /* --- Exhaust glow sprite at nozzle exit --- */
+    const gs=new THREE.Sprite(new THREE.SpriteMaterial({map:exhaustTex,
+      transparent:true,opacity:1.0,blending:THREE.AdditiveBlending,depthWrite:false,fog:false}));
+    gs.position.set(ex,ey,ez-0.02*k);
+    gs.scale.setScalar(er*8+0.18);
+    model.add(gs);
+    /* Secondary smaller glow — slightly behind */
+    const gs2=new THREE.Sprite(new THREE.SpriteMaterial({map:exhaustTex,
+      transparent:true,opacity:0.6,blending:THREE.AdditiveBlending,depthWrite:false,fog:false}));
+    gs2.position.set(ex,ey,ez-0.08*k);
+    gs2.scale.setScalar(er*6+0.10);
+    model.add(gs2);
   }
 
-  /* feux de navigation : rouge a babord, vert a tribord, strobe dorsal */
-  const navR=new THREE.Mesh(new THREE.SphereGeometry(0.012,10,8),glowMat(0xff3a4e,1));
-  navR.position.set(-0.405,-0.014,-0.145); model.add(navR);
-  const navG=new THREE.Mesh(new THREE.SphereGeometry(0.012,10,8),glowMat(0x3aff8e,1));
-  navG.position.set(0.405,-0.014,-0.145); model.add(navG);
+  /* ===========================================================
+     ENGINE NACELLE DETAIL — Pod housings, intake structures,
+     cooling vanes, thrust vectoring rings
+     =========================================================== */
+  (function(){
+    const nacelleMat=new THREE.MeshPhongMaterial({color:0x687080,specular:0x445566,shininess:18});
+    const vaneMat=new THREE.MeshPhongMaterial({color:0x808898,specular:0x556677,shininess:22});
+    /* Engine pod fairings — aerodynamic housing around each nozzle */
+    for(const [ex,ey,ez,er] of enginePositions){
+      /* Fairing — tapered cylinder around nozzle base */
+      const fairing=new THREE.CylinderGeometry(er*1.6,er*1.4,0.030,16);
+      fairing.rotateX(Math.PI/2);
+      fairing.translate(ex,ey,ez+0.012);
+      model.add(new THREE.Mesh(fairing,nacelleMat));
+      /* Cooling vane ring — thin fins around nozzle */
+      for(let a=0;a<8;a++){
+        const ang=a/8*TAU;
+        const vx=Math.cos(ang)*er*1.4;
+        const vy=Math.sin(ang)*er*1.4;
+        const vane=new THREE.Mesh(new THREE.BoxGeometry(0.001,0.006,0.008),vaneMat);
+        vane.position.set(ex+vx,ey+vy,ez+0.028);
+        vane.rotation.z=ang;
+        model.add(vane);
+      }
+      /* Inner thrust ring — decorative ring inside the nozzle opening */
+      if(er>0.020){
+        const thrRing=new THREE.TorusGeometry(er*0.7,er*0.04,6,16);
+        const thrM=new THREE.Mesh(thrRing,new THREE.MeshPhongMaterial({
+          color:0x556070,specular:0x445566,shininess:20}));
+        thrM.position.set(ex,ey,ez+0.010);
+        model.add(thrM);
+      }
+    }
+    /* Engine mounting pylons — structural struts connecting nozzles to hull */
+    for(const [ex,ey,ez,er] of enginePositions.slice(1)){
+      const pz=ez+0.035;
+      const pylon=new THREE.Mesh(new THREE.BoxGeometry(0.004,0.003,0.020),nacelleMat);
+      pylon.position.set(ex*0.5,ey+0.012,pz); model.add(pylon);
+      if(er>0.015){
+        const brace=new THREE.Mesh(new THREE.BoxGeometry(0.002,0.008,0.002),nacelleMat);
+        brace.position.set(ex*0.7,ey+0.010,pz+0.008); model.add(brace);
+      }
+    }
+  })();
+
+  /* ===========================================================
+     PANEL LINES — Surface detail with visible highlights
+     =========================================================== */
+  (function(){
+    const pMat=new THREE.LineBasicMaterial({color:0x445068,transparent:true,opacity:0.30});
+    const pHl=new THREE.LineBasicMaterial({color:0x99aabb,transparent:true,opacity:0.10});
+    for(const s of [-1,1]){
+      for(let k=0;k<4;k++){
+        const pts=[],pts2=[];
+        const frac=0.15+k*0.18;
+        for(let i=0;i<=36;i++){
+          const t=i/36;
+          const z=-0.72+t*1.62;
+          let hw;
+          if(z>0.65) hw=0.05*z/0.90;
+          else if(z>-0.48) hw=0.08+z*0.48;
+          else hw=0.52+z*0.04;
+          pts.push(new THREE.Vector3(s*hw*frac,0.050,z));
+          pts2.push(new THREE.Vector3(s*hw*frac,0.051,z));
+        }
+        const geo=new THREE.BufferGeometry().setFromPoints(pts);
+        model.add(new THREE.Line(geo,pMat));
+        model.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts2),pHl));
+      }
+    }
+    for(let j=0;j<18;j++){
+      const z=-0.68+j*0.09;
+      let hw;
+      if(z>0.65) hw=0.05*z/0.90;
+      else if(z>-0.48) hw=0.08+z*0.48;
+      else hw=0.52+z*0.04;
+      const pts=[new THREE.Vector3(-hw*0.94,0.050,z),new THREE.Vector3(hw*0.94,0.050,z)];
+      model.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),pMat));
+    }
+  })();
+
+  /* ===========================================================
+     TURBOLASER BATTERIES — Surface weapon mounts
+     =========================================================== */
+  for(const z of [-0.05, 0.10, 0.25, 0.40, 0.55]){
+    for(const s of [-1,1]){
+      const geo=new THREE.BoxGeometry(0.012,0.007,0.018);
+      geo.translate(s*0.24,0.053,z);
+      model.add(new THREE.Mesh(geo,TERR));
+      /* Small barrel stub */
+      const barrel=new THREE.CylinderGeometry(0.001,0.0012,0.012,4);
+      barrel.rotateX(Math.PI/2);
+      barrel.translate(s*0.24,0.057,z+0.009);
+      model.add(new THREE.Mesh(barrel,TERR));
+    }
+  }
+
+  /* ===========================================================
+     EDGE HIGHLIGHTS — Brighter hull edges for definition
+     =========================================================== */
+  for(const s of [-1,1]){
+    const pts=[];
+    for(let i=0;i<=40;i++){
+      const t=i/40;
+      const z=-0.72+t*1.62;
+      let hw;
+      if(z>0.65) hw=0.05*z/0.90;
+      else if(z>-0.48) hw=0.08+z*0.48;
+      else hw=0.52+z*0.04;
+      pts.push(new THREE.Vector3(s*hw*1.008,0.035,z));
+    }
+    const geo=new THREE.BufferGeometry().setFromPoints(pts);
+    model.add(new THREE.Line(geo,new THREE.LineBasicMaterial({color:0x88ccdd,transparent:true,opacity:0.35})));
+    /* Secondary thinner edge line — above */
+    const pts2=[];
+    for(let i=0;i<=40;i++){
+      const t=i/40;
+      const z=-0.72+t*1.62;
+      let hw;
+      if(z>0.65) hw=0.05*z/0.90;
+      else if(z>-0.48) hw=0.08+z*0.48;
+      else hw=0.52+z*0.04;
+      pts2.push(new THREE.Vector3(s*hw*1.005,0.042,z));
+    }
+    model.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts2),
+      new THREE.LineBasicMaterial({color:0x6688aa,transparent:true,opacity:0.18})));
+  }
+
+  /* ===========================================================
+     NAVIGATION LIGHTS — More visible, larger
+     =========================================================== */
+  const navR=new THREE.Mesh(new THREE.SphereGeometry(0.016,12,8),glowMat(0xff3a4e,1));
+  navR.position.set(-0.56,0.035,-0.48); model.add(navR);
+  const navG=new THREE.Mesh(new THREE.SphereGeometry(0.016,12,8),glowMat(0x3aff8e,1));
+  navG.position.set(0.56,0.035,-0.48); model.add(navG);
+  /* Nav light halos */
+  const navHaloR=new THREE.Mesh(new THREE.SphereGeometry(0.028,8,6),glowMat(0xff3a4e,0.2));
+  navHaloR.position.copy(navR.position); model.add(navHaloR);
+  const navHaloG=new THREE.Mesh(new THREE.SphereGeometry(0.028,8,6),glowMat(0x3aff8e,0.2));
+  navHaloG.position.copy(navG.position); model.add(navHaloG);
+  /* Strobe light — white flash on top */
   const strobe=new THREE.Sprite(new THREE.SpriteMaterial({map:softTex,color:0xffffff,
-    transparent:true,opacity:0,blending:THREE.AdditiveBlending,depthWrite:false,fog:false}));
-  strobe.position.set(0,0.105,0.02); strobe.scale.setScalar(0.17); model.add(strobe);
+    transparent:true,opacity:0,blending:THREE.NormalBlending,depthWrite:false,fog:false}));
+  strobe.position.set(0,0.280,-0.50); strobe.scale.setScalar(0.18); model.add(strobe);
+  /* Strobe point light */
+  const strobeLight=new THREE.PointLight(0xffffff,0.5,1.0,2);
+  strobeLight.position.set(0,0.280,-0.50); model.add(strobeLight);
 
-  /* halo de bouclier : garde le vaisseau lisible sur fond d'etoiles */
-  const halo=new THREE.Sprite(new THREE.SpriteMaterial({map:softTex,color:0x86c4ff,
-    transparent:true,opacity:0.40,blending:THREE.AdditiveBlending,depthWrite:false,fog:false}));
-  halo.scale.setScalar(1.5); halo.renderOrder=6; model.add(halo);
+  /* ===========================================================
+     SHIP AURA — Multi-layer light halo that illuminates the hull
+     =========================================================== */
+  /* Large ambient glow around entire ship */
+  const auraTex=canvasTex(256,256,(g)=>{
+    const gr=g.createRadialGradient(128,128,0,128,128,128);
+    gr.addColorStop(0,'rgba(180,200,230,0.5)');
+    gr.addColorStop(0.2,'rgba(140,160,200,0.25)');
+    gr.addColorStop(0.5,'rgba(100,120,170,0.08)');
+    gr.addColorStop(1,'rgba(0,0,0,0)');
+    g.fillStyle=gr; g.fillRect(0,0,256,256);
+  });
+  /* Top-down illumination halo */
+  const auraTop=new THREE.Sprite(new THREE.SpriteMaterial({map:auraTex,
+    transparent:true,opacity:0.35,blending:THREE.NormalBlending,depthWrite:false,fog:false}));
+  auraTop.position.set(0,0.15,0); auraTop.scale.set(1.6,1.0,1);
+  model.add(auraTop);
+  /* Bottom ventral aura */
+  const auraBot=new THREE.Sprite(new THREE.SpriteMaterial({map:auraTex,
+    transparent:true,opacity:0.20,blending:THREE.NormalBlending,depthWrite:false,fog:false}));
+  auraBot.position.set(0,-0.10,0.05); auraBot.scale.set(1.2,0.6,1);
+  model.add(auraBot);
+  /* Side aura — port and starboard */
+  for(const s of [-1,1]){
+    const auraSide=new THREE.Sprite(new THREE.SpriteMaterial({map:auraTex,
+      transparent:true,opacity:0.18,blending:THREE.NormalBlending,depthWrite:false,fog:false}));
+    auraSide.position.set(s*0.55,0.03,0.1); auraSide.scale.set(0.5,0.8,1);
+    model.add(auraSide);
+  }
+
+  /* ===========================================================
+     SURFACE POINT LIGHTS — Real illumination on hull geometry
+     =========================================================== */
+  /* Bridge area light — illuminates the command tower */
+  const bridgeLight=new THREE.PointLight(0x8899cc,2.0,0.8,2);
+  bridgeLight.position.set(0,0.26,-0.50);
+  model.add(bridgeLight);
+  /* Engine area light — warm glow on rear hull */
+  const engLight=new THREE.PointLight(0xff8844,1.2,0.6,2);
+  engLight.position.set(0,-0.02,-0.72);
+  model.add(engLight);
+  /* Ventral bay light — illuminate docking area */
+  const bayLight=new THREE.PointLight(0x8899bb,0.8,0.5,2);
+  bayLight.position.set(0,-0.01,-0.40);
+  model.add(bayLight);
+  /* Forward hull light — illuminate the nose area */
+  const fwdLight=new THREE.PointLight(0x99aacc,1.0,0.8,2);
+  fwdLight.position.set(0,0.06,0.40);
+  model.add(fwdLight);
+  /* Port/Starboard hull lights */
+  for(const s of [-1,1]){
+    const sideLt=new THREE.PointLight(0x8899aa,0.6,0.6,2);
+    sideLt.position.set(s*0.35,0.05,0.0);
+    model.add(sideLt);
+  }
+
+  /* ===========================================================
+     WEAPONS — Turbolaser beams on mouse click
+     =========================================================== */
+  const LASER_COOLDOWN=0.18;
+  let laserCooldown=0;
+  const LASER_COLORS=[0x22ff44,0x00ddff,0xff3333,0xffaa00];
+  const _ray=new THREE.Raycaster();
+  const _laserDir=new THREE.Vector3();
+  const _laserOrigin=new THREE.Vector3();
+
+  /* ---- Turbolaser texture: bright core + glow ---- */
+  const laserTex=canvasTex(256,256,(g)=>{
+    const gr=g.createRadialGradient(128,128,0,128,128,128);
+    gr.addColorStop(0,'rgba(255,255,255,1)');
+    gr.addColorStop(0.08,'rgba(255,255,255,0.9)');
+    gr.addColorStop(0.20,'rgba(200,255,200,0.6)');
+    gr.addColorStop(0.50,'rgba(100,255,150,0.15)');
+    gr.addColorStop(1,'rgba(0,0,0,0)');
+    g.fillStyle=gr; g.fillRect(0,0,256,256);
+  });
+  /* ---- Explosion texture ---- */
+  const explodeTex=canvasTex(256,256,(g)=>{
+    const gr=g.createRadialGradient(128,128,0,128,128,128);
+    gr.addColorStop(0,'rgba(255,255,255,1)');
+    gr.addColorStop(0.10,'rgba(255,240,180,0.95)');
+    gr.addColorStop(0.25,'rgba(255,160,40,0.7)');
+    gr.addColorStop(0.50,'rgba(255,60,10,0.25)');
+    gr.addColorStop(0.75,'rgba(180,20,0,0.06)');
+    gr.addColorStop(1,'rgba(0,0,0,0)');
+    g.fillStyle=gr; g.fillRect(0,0,256,256);
+  });
+  /* ---- Muzzle blast texture ---- */
+  const muzzleTex=canvasTex(256,256,(g)=>{
+    const gr=g.createRadialGradient(128,128,0,128,128,128);
+    gr.addColorStop(0,'rgba(255,255,255,1)');
+    gr.addColorStop(0.15,'rgba(200,255,220,0.9)');
+    gr.addColorStop(0.35,'rgba(100,255,180,0.5)');
+    gr.addColorStop(0.60,'rgba(40,200,100,0.12)');
+    gr.addColorStop(1,'rgba(0,0,0,0)');
+    g.fillStyle=gr; g.fillRect(0,0,256,256);
+  });
+
+  /* ---- Beam pool (core + glow layer) ---- */
+  const LASER_POOL=8;
+  const laserPool=[];
+  for(let i=0;i<LASER_POOL;i++){
+    /* Core beam — BIG bright cylinder */
+    const core=new THREE.Mesh(
+      new THREE.CylinderGeometry(0.20,0.20,1,8,1,true),
+      new THREE.MeshBasicMaterial({color:0x44ff44,transparent:true,opacity:0.8,
+        blending:THREE.NormalBlending,depthWrite:false,side:THREE.DoubleSide,fog:false})
+    );
+    core.visible=false; core.renderOrder=10; scene.add(core);
+    /* Glow sprite — subtle halo around the beam */
+    const glow=new THREE.Sprite(new THREE.SpriteMaterial({map:laserTex,
+      color:0x44ff44,transparent:true,opacity:0.15,
+      blending:THREE.NormalBlending,depthWrite:false,fog:false}));
+    glow.visible=false; glow.renderOrder=9; scene.add(glow);
+    laserPool.push({core,glow,life:0});
+  }
+
+  /* ---- Hit explosion pool ---- */
+  const _hitPool=[];
+  for(let i=0;i<8;i++){
+    const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:explodeTex,color:0xffffff,
+      transparent:true,opacity:0,blending:THREE.NormalBlending,depthWrite:false,fog:false}));
+    sp.visible=false; sp.renderOrder=11; scene.add(sp);
+    _hitPool.push({sprite:sp,life:0,maxLife:0});
+  }
+
+  /* ---- Muzzle flash pool ---- */
+  const _muzzlePool=[];
+  for(let i=0;i<6;i++){
+    const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:muzzleTex,color:0x88ffaa,
+      transparent:true,opacity:0,blending:THREE.NormalBlending,depthWrite:false,fog:false}));
+    sp.visible=false; sp.renderOrder=10; model.add(sp);
+    _muzzlePool.push({sprite:sp,life:0,maxLife:0});
+  }
+
+  /* ---- Turbolaser turret positions (firing points) ---- */
+  const firePoints=[
+    new THREE.Vector3(-0.24,0.056,0.55),
+    new THREE.Vector3( 0.24,0.056,0.55),
+    new THREE.Vector3(-0.24,0.056,0.30),
+    new THREE.Vector3( 0.24,0.056,0.30),
+  ];
+  let nextFireIdx=0;
+
+  /* ---- Collect raycast targets ---- */
+  const _targetMeshes=[];
+  function collectTargets(){
+    _targetMeshes.length=0;
+    scene.traverse(obj=>{
+      if(!obj.isMesh) return;
+      let p=obj;
+      while(p){ if(p===ship) return; p=p.parent; }
+      if(!obj.geometry||!obj.geometry.attributes||!obj.geometry.attributes.position) return;
+      _targetMeshes.push(obj);
+    });
+  }
+  collectTargets();
+
+  /* ---- Crosshair — BIG visible target point projected in front of ship ---- */
+  const crossMat=new THREE.LineBasicMaterial({color:0x44ff88,transparent:true,opacity:0.8});
+  const crossGroup=new THREE.Group();
+  scene.add(crossGroup);
+  /* Horizontal lines — long with gap */
+  (function(){
+    const g=new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(-1.8,0,0), new THREE.Vector3(-0.3,0,0)]);
+    crossGroup.add(new THREE.Line(g,crossMat));
+    const g2=new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(0.3,0,0), new THREE.Vector3(1.8,0,0)]);
+    crossGroup.add(new THREE.Line(g2,crossMat));
+  })();
+  /* Vertical lines — long with gap */
+  (function(){
+    const g=new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(0,-1.8,0), new THREE.Vector3(0,-0.3,0)]);
+    crossGroup.add(new THREE.Line(g,crossMat));
+    const g2=new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(0,0.3,0), new THREE.Vector3(0,1.8,0)]);
+    crossGroup.add(new THREE.Line(g2,crossMat));
+  })();
+  /* Corner brackets — targeting reticle feel */
+  (function(){
+    const bMat=new THREE.LineBasicMaterial({color:0x44ff88,transparent:true,opacity:0.5});
+    const corners=[[-1,-1],[1,-1],[1,1],[-1,1]];
+    for(const [sx,sy] of corners){
+      const pts=[
+        new THREE.Vector3(sx*1.0,0,0), new THREE.Vector3(sx*1.3,0,0),
+        new THREE.Vector3(sx*1.3,sy*0.3,0)];
+      crossGroup.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),bMat));
+      const pts2=[
+        new THREE.Vector3(0,sy*1.0,0), new THREE.Vector3(0,sy*1.3,0),
+        new THREE.Vector3(sx*0.3,sy*1.3,0)];
+      crossGroup.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts2),bMat));
+    }
+  })();
+  /* Center dot — bigger, brighter */
+  const crossDot=new THREE.Sprite(new THREE.SpriteMaterial({map:softTex,
+    color:0x44ff88,transparent:true,opacity:0.5,
+    blending:THREE.NormalBlending,depthWrite:false,fog:false}));
+  crossDot.scale.setScalar(0.25);
+  crossGroup.add(crossDot);
+  /* Distance ring — bigger */
+  const crossRing=new THREE.Line(
+    new THREE.BufferGeometry().setFromPoints(
+      Array.from({length:33},(_,i)=>{const a=i/32*TAU; return new THREE.Vector3(Math.cos(a)*1.2,Math.sin(a)*1.2,0);})),
+    new THREE.LineBasicMaterial({color:0x44ff88,transparent:true,opacity:0.3}));
+  crossGroup.add(crossRing);
+  crossGroup.visible=false;
+  crossGroup.renderOrder=15;
+
+    /* ---- SHIP.fire ---- */
+  SHIP.fire=function(){
+    if(laserCooldown>0) return;
+    laserCooldown=LASER_COOLDOWN;
+    const b=laserPool.find(x=>x.life<=0);
+    if(!b) return;
+    /* Rebuild raycast targets so dynamically spawned enemies are hittable */
+    collectTargets();
+    b.life=0.18;   /* visible 180ms */
+    const fp=firePoints[nextFireIdx%firePoints.length];
+    nextFireIdx++;
+    ship.updateMatrixWorld(true);
+    _laserOrigin.copy(fp).applyMatrix4(model.matrixWorld);
+    /* Fire in the CAMERA direction (where player is actually aiming),
+       not the ship's current facing (which lags behind due to slerp smoothing) */
+    const camFwd=new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion).normalize();
+    _laserDir.copy(camFwd);
+    const col=LASER_COLORS[Math.floor(Math.random()*LASER_COLORS.length)];
+    const LASER_LEN=500;
+    /* position core beam */
+    b.core.position.copy(_laserOrigin).addScaledVector(_laserDir,LASER_LEN*0.5);
+    b.core.lookAt(_laserOrigin.clone().addScaledVector(_laserDir,LASER_LEN));
+    b.core.rotateX(Math.PI/2);
+    b.core.scale.set(1,LASER_LEN,1);
+    b.core.visible=true;
+    b.core.material.color.setHex(col);
+    b.core.material.opacity=1;
+    /* position glow sprite along the beam center — subtle */
+    b.glow.position.copy(_laserOrigin).addScaledVector(_laserDir,LASER_LEN*0.35);
+    b.glow.visible=true;
+    b.glow.material.color.setHex(col);
+    b.glow.material.opacity=0.25;
+    b.glow.scale.set(0.8,LASER_LEN*0.15,1);
+
+    /* ---- Muzzle flash — small subtle spark ---- */
+    const mf=_muzzlePool.find(x=>x.life<=0);
+    if(mf){
+      mf.life=0.06; mf.maxLife=0.06;
+      mf.sprite.position.copy(fp).addScaledVector(_laserDir,0.05);
+      mf.sprite.visible=true;
+      mf.sprite.material.color.setHex(col);
+      mf.sprite.material.opacity=0.6;
+      mf.sprite.scale.setScalar(0.2);
+    }
+    /* second smaller flash offset */
+    const mf2=_muzzlePool.find(x=>x.life<=0);
+    if(mf2){
+      mf2.life=0.04; mf2.maxLife=0.04;
+      mf2.sprite.position.copy(fp).addScaledVector(_laserDir,0.12);
+      mf2.sprite.visible=true;
+      mf2.sprite.material.color.setHex(0xffffff);
+      mf2.sprite.material.opacity=0.4;
+      mf2.sprite.scale.setScalar(0.12);
+    }
+
+    /* ---- Raycast for hit — fire from CAMERA center (what player aims at) ---- */
+    try{
+      _ray.set(camera.position,camFwd);
+      _ray.far=99999;
+      const hits=_ray.intersectObjects(_targetMeshes,false);
+      if(hits.length>0){
+        const hit=hits[0];
+        /* impact flash — small spark at hit point */
+        const hf=_hitPool.find(x=>x.life<=0);
+        if(hf){
+          hf.life=0.15; hf.maxLife=0.15;
+          hf.sprite.position.copy(hit.point);
+          hf.sprite.visible=true;
+          hf.sprite.material.color.setHex(col);
+          hf.sprite.material.opacity=0.7;
+          const sz=1.5+Math.random()*2;
+          hf.sprite.scale.setScalar(sz);
+        }
+        /* secondary white spark */
+        const hf2=_hitPool.find(x=>x.life<=0);
+        if(hf2){
+          hf2.life=0.08; hf2.maxLife=0.08;
+          hf2.sprite.position.copy(hit.point);
+          hf2.sprite.visible=true;
+          hf2.sprite.material.color.setHex(0xffffff);
+          hf2.sprite.material.opacity=0.5;
+          hf2.sprite.scale.setScalar(1);
+        }
+        SHIP.lastHit={point:hit.point,object:hit.object,distance:hit.distance};
+      } else {
+        SHIP.lastHit=null;
+      }
+    }catch(e){}
+  };
+
+  /* ---- Update lasers + effects each frame ---- */
+  SHIP.updateLasers=function(dt){
+    laserCooldown=Math.max(0,laserCooldown-dt);
+    /* beams */
+    for(const b of laserPool){
+      if(b.life>0){
+        b.life-=dt;
+        const k=Math.max(0,b.life/0.18);
+        b.core.material.opacity=k;
+        b.glow.material.opacity=k*0.7;
+        if(b.life<=0){ b.core.visible=false; b.glow.visible=false; }
+      }
+    }
+    /* muzzle flashes */
+    for(const mf of _muzzlePool){
+      if(mf.life>0){
+        mf.life-=dt;
+        const k=Math.max(0,mf.life/mf.maxLife);
+        mf.sprite.material.opacity=k;
+        mf.sprite.scale.setScalar((0.25+0.25*(1-k))*mf.maxLife/0.10);
+        if(mf.life<=0) mf.sprite.visible=false;
+      }
+    }
+    /* hit explosions */
+    for(const hf of _hitPool){
+      if(hf.life>0){
+        hf.life-=dt;
+        const k=Math.max(0,hf.life/hf.maxLife);
+        hf.sprite.material.opacity=k*0.8;
+        hf.sprite.scale.setScalar(1+(1-k)*3); /* grow modestly to scale 4, not 13 */
+        if(hf.life<=0) hf.sprite.visible=false;
+      }
+    }
+    /* crosshair position — projected in camera direction (where player aims) */
+    if(SHIP.freeFlight){
+      crossGroup.visible=true;
+      ship.updateMatrixWorld(true);
+      const camDir=new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion).normalize();
+      const crossPos=camera.position.clone().addScaledVector(camDir,60);
+      crossGroup.position.copy(crossPos);
+      /* orient crosshair to face camera */
+      crossGroup.quaternion.copy(camera.quaternion);
+      /* pulsing opacity */
+      const pulse=0.4+0.2*Math.sin(clock.elapsedTime*6);
+      crossMat.opacity=pulse;
+      crossDot.material.opacity=pulse+0.1;
+      crossRing.material.opacity=pulse*0.5;
+    } else {
+      crossGroup.visible=false;
+    }
+  };
+
+  /* ---- SHIP.cleanup — resets ALL combat effects when exiting combat ---- */
+  SHIP.cleanup=function(){
+    /* Clear player laser beams */
+    for(const b of laserPool){
+      b.life=0; b.core.visible=false; b.glow.visible=false;
+    }
+    /* Clear hit impact pool (ship IIFE scope) */
+    for(const h of _hitPool){
+      h.life=0; h.sprite.visible=false; h.sprite.material.opacity=0;
+      h.sprite.scale.setScalar(1);
+    }
+    /* Clear muzzle flash pool (ship IIFE scope) */
+    for(const m of _muzzlePool){
+      m.life=0; m.sprite.visible=false; m.sprite.material.opacity=0;
+      m.sprite.scale.setScalar(1);
+    }
+    /* Clear crosshair */
+    crossGroup.visible=false;
+    /* Delegate to ENEMIES cleanup for enemy-side effects */
+    if(typeof ENEMIES!=='undefined' && ENEMIES.cleanup) ENEMIES.cleanup();
+  };
+
+  /* ===========================================================
+     RIDGE LINES — Raised seams along tier edges
+     =========================================================== */
+  (function(){
+    const ridgeMat=new THREE.MeshPhongMaterial({color:0x909aa4,specular:0x334455,shininess:15});
+    /* Ridge strips along each tier edge on both sides */
+    for(const ty of [0.097,0.129,0.157,0.183,0.207,0.229,0.249]){
+      for(const s of [-1,1]){
+        const geo=new THREE.BoxGeometry(0.004,0.003,0.30);
+        geo.translate(s*0.18,ty+0.002,-0.30);
+      model.add(new THREE.Mesh(geo,ridgeMat));
+      }
+    }
+    /* Central spine ridge from nose to bridge */
+    (function(){
+      const geo=new THREE.BoxGeometry(0.005,0.003,1.20);
+      geo.translate(0,0.050,0.10);
+      model.add(new THREE.Mesh(geo,ridgeMat));
+    })();
+  })();
+
+  /* ===========================================================
+     GREEBLE BOXES — Dense surface detail on hull flanks
+     =========================================================== */
+  (function(){
+    const rng2=mulberry32(99);
+    const greebleMat=new THREE.MeshPhongMaterial({color:0xa8b0ba,specular:0x445566,shininess:18});
+    const greebleDark=new THREE.MeshPhongMaterial({color:0x808890,specular:0x334455,shininess:10});
+    /* Scatter small boxes along the hull surface — more variety */
+    for(let k=0;k<120;k++){
+      const z=-0.60+rng2()*1.40;
+      let hw;
+      if(z>0.65) hw=0.05*z/0.90;
+      else if(z>-0.48) hw=0.08+z*0.48;
+      else hw=0.52+z*0.04;
+      const s=rng2()<0.5?-1:1;
+      const x=s*hw*(0.35+rng2()*0.55);
+      const w=0.004+rng2()*0.014;
+      const h=0.002+rng2()*0.006;
+      const d=0.006+rng2()*0.022;
+      const shade=85+Math.floor(rng2()*45);
+      const mat=new THREE.MeshPhongMaterial({color:new THREE.Color(shade/255,(shade+5)/255,(shade+12)/255),
+        specular:0x334455,shininess:15+Math.floor(rng2()*15)});
+      const geo=new THREE.BoxGeometry(w,h,d);
+      geo.translate(x,0.048,z);
+      model.add(new THREE.Mesh(geo,rng2()>0.3?mat:greebleMat));
+    }
+    /* Larger feature blocks — important-looking structures */
+    for(let k=0;k<12;k++){
+      const z=-0.40+rng2()*0.80;
+      const s=rng2()<0.5?-1:1;
+      const hw=(z>-0.48)?0.08+z*0.48:0.52+z*0.04;
+      const x=s*hw*(0.40+rng2()*0.40);
+      const w=0.015+rng2()*0.025;
+      const h=0.005+rng2()*0.008;
+      const d=0.020+rng2()*0.040;
+      const geo=new THREE.BoxGeometry(w,h,d);
+      geo.translate(x,0.050,z);
+      model.add(new THREE.Mesh(geo,greebleDark));
+    }
+    /* Pipe runs — thin elongated boxes along the hull */
+    for(let k=0;k<12;k++){
+      const s=rng2()<0.5?-1:1;
+      const z0=-0.50+rng2()*1.20;
+      const len=0.08+rng2()*0.25;
+      const x=s*(0.06+rng2()*0.35);
+      const geo=new THREE.BoxGeometry(0.003,0.003,len);
+      geo.translate(x,0.050,z0);
+      model.add(new THREE.Mesh(geo,greebleMat));
+      /* Pipe highlight */
+      const hl=new THREE.BoxGeometry(0.001,0.001,len*0.8);
+      hl.translate(x,0.052,z0);
+      model.add(new THREE.Mesh(hl,new THREE.MeshPhongMaterial({color:0xaab0bc,specular:0x445566,shininess:25})));
+    }
+  })();
+
+  /* ===========================================================
+     TRENCH INTERNAL DETAIL — Structures inside the side trenches
+     =========================================================== */
+  for(const side of [-1,1]){
+    (function(){
+      const darkMat=new THREE.MeshPhongMaterial({color:0x303840,specular:0x222230,shininess:5,
+        emissive:0x080c14,emissiveIntensity:0.05});
+      const ribMat=new THREE.MeshPhongMaterial({color:0x4a5060,specular:0x334455,shininess:10});
+      /* Ribs inside the trench — thicker, more visible */
+      for(let k=0;k<14;k++){
+        const z=-0.38+k*0.07;
+        const geo=new THREE.BoxGeometry(0.014,0.020,0.004);
+        geo.translate(side*0.36,0.055,z);
+        model.add(new THREE.Mesh(geo,ribMat));
+      }
+      /* Cross-braces inside trench */
+      for(let k=0;k<8;k++){
+        const z=-0.30+k*0.12;
+        const geo=new THREE.BoxGeometry(0.002,0.016,0.002);
+        geo.translate(side*0.355,0.056,z);
+        model.add(new THREE.Mesh(geo,darkMat));
+      }
+      /* Light strip along trench lip — brighter */
+      const pts=[];
+      for(let i=0;i<=30;i++){
+        const t=i/30;
+        const z=-0.40+t*0.80;
+        const x=side*(0.30+t*0.18);
+        pts.push(new THREE.Vector3(x,0.064,z));
+      }
+      const geo=new THREE.BufferGeometry().setFromPoints(pts);
+      model.add(new THREE.Line(geo,new THREE.LineBasicMaterial({color:0x7799bb,transparent:true,opacity:0.22})));
+      /* Trench interior glow — dim blue strip */
+      const glowStrip=new THREE.Mesh(new THREE.BoxGeometry(0.001,0.001,0.60),
+        glowMat(0x4466aa,0.15));
+      glowStrip.position.set(side*0.35,0.052,0.0);
+      model.add(glowStrip);
+    })();
+  }
+
+  /* ===========================================================
+     WEAPON EMPLACEMENTS — Detailed turbolaser turrets
+     =========================================================== */
+  (function(){
+    const turretMat=new THREE.MeshPhongMaterial({color:0x9a9ea8,specular:0x556677,shininess:25});
+    const turretDark=new THREE.MeshPhongMaterial({color:0x6a6e78,specular:0x444450,shininess:15});
+    /* Heavy turrets — 4 per side on hull flanks */
+    for(const z of [-0.05, 0.12, 0.30, 0.48]){
+      for(const s of [-1,1]){
+        /* Turret base (disc) */
+        const base=new THREE.CylinderGeometry(0.010,0.012,0.005,12);
+        base.translate(s*0.24,0.054,z);
+        model.add(new THREE.Mesh(base,turretDark));
+        /* Turret housing */
+        const house=new THREE.BoxGeometry(0.008,0.005,0.010);
+        house.translate(s*0.24,0.059,z);
+        model.add(new THREE.Mesh(house,turretMat));
+        /* Barrel */
+        const barrel=new THREE.CylinderGeometry(0.0018,0.0022,0.024,6);
+        barrel.rotateX(Math.PI/2);
+        barrel.translate(s*0.24,0.061,z+0.012);
+        model.add(new THREE.Mesh(barrel,turretMat));
+        /* Barrel tip — slight glow */
+        const tip=new THREE.Mesh(new THREE.SphereGeometry(0.002,4,3),
+          glowMat(0xaabbcc,0.3));
+        tip.position.set(s*0.24,0.061,z+0.024);
+        model.add(tip);
+      }
+    }
+    /* Light point-defense guns along trench edge */
+    for(let k=0;k<12;k++){
+      const z=-0.30+k*0.09;
+      for(const s of [-1,1]){
+        /* Gun mount */
+        const mount=new THREE.Mesh(new THREE.CylinderGeometry(0.002,0.0025,0.003,6),turretDark);
+        mount.position.set(s*0.32,0.057,z);
+        model.add(mount);
+        /* Barrel */
+        const gun=new THREE.Mesh(new THREE.CylinderGeometry(0.0008,0.001,0.008,4),
+          turretMat);
+        gun.rotateX(Math.PI/2);
+        gun.position.set(s*0.32,0.059,z+0.004);
+        model.add(gun);
+      }
+    }
+  })();
+
+  /* ===========================================================
+     BRIDGE DETAIL — Antenna arrays, windows, sensor dish
+     =========================================================== */
+  (function(){
+    const antMat=new THREE.MeshPhongMaterial({color:0x707888,specular:0x556677,shininess:35});
+    /* Antenna masts on top of T-bar */
+    for(const s of [-1,1]){
+      const mast=new THREE.CylinderGeometry(0.0015,0.0015,0.028,4);
+      mast.translate(s*0.040,0.296,-0.50);
+      model.add(new THREE.Mesh(mast,antMat));
+      /* Tiny tip light — brighter red */
+      const tip=new THREE.Mesh(new THREE.SphereGeometry(0.004,6,4),
+        glowMat(0xff4444,1));
+      tip.position.set(s*0.040,0.312,-0.50);
+      model.add(tip);
+    }
+    /* Bridge viewport — larger glowing strip */
+    (function(){
+      const geo=new THREE.BoxGeometry(0.038,0.006,0.005);
+      geo.translate(0,0.222,-0.456);
+      model.add(new THREE.Mesh(geo,glowMat(0x88ddff,1)));
+    })();
+    /* Bridge window rows — brighter, bigger dots */
+    for(let row=0;row<3;row++){
+      for(let col=-4;col<=4;col++){
+        const wx=col*0.005;
+        const wy=0.218+0.006+row*0.006;
+        const dot=new THREE.Mesh(new THREE.BoxGeometry(0.004,0.003,0.003),
+          glowMat(0x99ccff,0.8));
+        dot.position.set(wx,wy,-0.456);
+        model.add(dot);
+      }
+    }
+    /* Side windows on bridge neck — brighter */
+    for(const s of [-1,1]){
+      for(let row=0;row<5;row++){
+        const wy=0.202+row*0.008;
+        const dot=new THREE.Mesh(new THREE.BoxGeometry(0.003,0.003,0.004),
+          glowMat(0x88bbdd,0.7));
+        dot.position.set(s*0.025,wy,-0.480);
+        model.add(dot);
+      }
+    }
+    /* Bridge command deck — strip of light windows along the top */
+    for(let col=-5;col<=5;col++){
+      const dot=new THREE.Mesh(new THREE.BoxGeometry(0.004,0.002,0.004),
+        glowMat(0xaaccee,0.7));
+      dot.position.set(col*0.008,0.260,-0.50);
+      model.add(dot);
+    }
+    /* Sensor dish under bridge */
+    (function(){
+      const geo=new THREE.SphereGeometry(0.010,12,8,0,TAU,0,Math.PI*0.5);
+      geo.rotateX(Math.PI);
+      geo.translate(0,0.213,-0.470);
+      model.add(new THREE.Mesh(geo,antMat));
+    })();
+    /* Deflector shield domes — larger, brighter */
+    for(const s of [-1,1]){
+      const dome=new THREE.Mesh(new THREE.SphereGeometry(0.022,16,12),
+        new THREE.MeshPhongMaterial({color:0xc0c8d8,specular:0x8899aa,shininess:45,
+          emissive:0x223344,emissiveIntensity:0.2}));
+      dome.position.set(s*0.044,0.274,-0.50);
+      model.add(dome);
+    }
+    /* Sensor globes — brighter */
+    for(const s of [-1,1]){
+      const sg=new THREE.Mesh(new THREE.SphereGeometry(0.011,10,8),
+        new THREE.MeshPhongMaterial({color:0xaab0c0,specular:0x667788,shininess:40}));
+      sg.position.set(s*0.044,0.238,-0.50);
+      model.add(sg);
+    }
+  })();
+
+  /* ===========================================================
+     HULL RUNNING LIGHTS — Visible lights along edges and deck seams
+     =========================================================== */
+  (function(){
+    const rng3=mulberry32(55);
+    /* Edge lights — along both sides of hull */
+    for(const s of [-1,1]){
+      for(let k=0;k<30;k++){
+        const t=k/30;
+        const z=-0.60+t*1.40;
+        let hw;
+        if(z>0.65) hw=0.05*z/0.90;
+        else if(z>-0.48) hw=0.08+z*0.48;
+        else hw=0.52+z*0.04;
+        const warmth=rng3();
+        const r=0.6+warmth*0.2, g2=0.65+warmth*0.15, b=0.75+warmth*0.1;
+        const dot=new THREE.Mesh(new THREE.SphereGeometry(0.003,4,3),
+          glowMat(new THREE.Color(r,g2,b).getHex(),0.6+rng3()*0.3));
+        dot.position.set(s*hw*0.98,0.038,z);
+        model.add(dot);
+      }
+    }
+    /* Deck seam lights — rows of lights along tier edges */
+    for(const ty of [0.097,0.129,0.157,0.183,0.207]){
+      for(let k=0;k<16;k++){
+        const t=k/16;
+        const z=-0.50+t*0.70;
+        for(const s of [-1,1]){
+          let hw;
+          if(z>-0.48) hw=0.08+z*0.48;
+          else hw=0.52+z*0.04;
+          const dot=new THREE.Mesh(new THREE.SphereGeometry(0.002,3,2),
+            glowMat(0x8899bb,0.35+rng3()*0.25));
+          dot.position.set(s*hw*0.55,ty+0.004,z);
+          model.add(dot);
+        }
+      }
+    }
+  })();
+
+  /* ===========================================================
+     VENTRAL DETAIL — Docking bay outlines + reactor detail + interior lights
+     =========================================================== */
+  (function(){
+    const ventMat=new THREE.MeshPhongMaterial({color:0x303840,specular:0x181c24,shininess:3});
+    /* Primary docking bay — large rectangle on ventral hull */
+    const bay=new THREE.BoxGeometry(0.20,0.005,0.12);
+    bay.translate(0,-0.025,-0.40);
+    model.add(new THREE.Mesh(bay,ventMat));
+    /* Bay frame outline */
+    const bayEdge=new THREE.EdgesGeometry(new THREE.BoxGeometry(0.20,0.005,0.12));
+    const bayLine=new THREE.LineSegments(bayEdge,new THREE.LineBasicMaterial({color:0x5577aa,transparent:true,opacity:0.3}));
+    bayLine.position.set(0,-0.025,-0.40);
+    model.add(bayLine);
+    /* Bay interior lights — rows of yellow-white lights inside the bay */
+    for(let row=-3;row<=3;row++){
+      for(let col=-6;col<=6;col++){
+        const lx=col*0.014, lz=-0.40+row*0.015;
+        const dot=new THREE.Mesh(new THREE.SphereGeometry(0.002,3,2),
+          glowMat(0xddccaa,0.5));
+        dot.position.set(lx,-0.027,lz);
+        model.add(dot);
+      }
+    }
+    /* Bay entrance glow strips */
+    for(const s of [-1,1]){
+      const strip=new THREE.Mesh(new THREE.BoxGeometry(0.003,0.003,0.12),
+        glowMat(0x8899bb,0.4));
+      strip.position.set(s*0.10,-0.026,-0.40);
+      model.add(strip);
+    }
+    /* Secondary docking bay — smaller */
+    const bay2=new THREE.BoxGeometry(0.10,0.004,0.06);
+    bay2.translate(0,-0.024,-0.22);
+    model.add(new THREE.Mesh(bay2,ventMat));
+    /* Secondary bay lights */
+    for(let row=-2;row<=2;row++){
+      for(let col=-3;col<=3;col++){
+        const dot=new THREE.Mesh(new THREE.SphereGeometry(0.0015,3,2),
+          glowMat(0xccbb99,0.4));
+        dot.position.set(col*0.013,-0.026,-0.22+row*0.012);
+        model.add(dot);
+      }
+    }
+    /* Reactor glow on ventral bulge — larger, brighter */
+    const reactGlow=new THREE.Mesh(new THREE.SphereGeometry(0.016,10,8),
+      glowMat(0x4466aa,0.5));
+    reactGlow.position.set(0,-0.088,-0.38);
+    model.add(reactGlow);
+    /* Reactor mounting ring */
+    const ringGeo=new THREE.TorusGeometry(0.022,0.003,6,20);
+    ringGeo.rotateX(Math.PI/2);
+    const ring=new THREE.Mesh(ringGeo,new THREE.MeshPhongMaterial({color:0x556677,specular:0x334455,shininess:25}));
+    ring.position.set(0,-0.085,-0.38);
+    model.add(ring);
+  })();
+
+  /* ===========================================================
+     ATMOSPHERIC SHIELD — Very subtle hull edge Fresnel glow
+     =========================================================== */
+  (function(){
+    const shieldMat=new THREE.ShaderMaterial({
+      uniforms:{},
+      vertexShader:`
+        varying vec3 vNormal;
+        varying vec3 vWorldPos;
+        void main(){
+          vNormal=normalize(normalMatrix*normal);
+          vWorldPos=(modelMatrix*vec4(position,1.0)).xyz;
+          gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);
+        }`,
+      fragmentShader:`
+        varying vec3 vNormal;
+        varying vec3 vWorldPos;
+        void main(){
+          vec3 viewDir=normalize(cameraPosition-vWorldPos);
+          float fresnel=pow(1.0-abs(dot(viewDir,vNormal)),5.0);
+          float a=fresnel*0.08;
+          gl_FragColor=vec4(0.5,0.6,0.8,a);
+        }`,
+      transparent:true,side:THREE.FrontSide,
+      blending:THREE.AdditiveBlending,depthWrite:false
+    });
+    /* Apply to a scaled-up clone of the hull outline */
+    const sh=new THREE.Shape();
+    sh.moveTo(0, 0.92);
+    sh.bezierCurveTo(-0.03,0.77, -0.10,0.57, -0.18,0.32);
+    sh.bezierCurveTo(-0.26,0.07, -0.38,-0.13, -0.50,-0.33);
+    sh.lineTo(-0.58,-0.52);
+    sh.lineTo(-0.52,-0.62);
+    sh.bezierCurveTo(-0.46,-0.68, -0.36,-0.72, -0.24,-0.76);
+    sh.bezierCurveTo(-0.12,-0.80, -0.04,-0.82, 0,-0.78);
+    sh.bezierCurveTo(0.04,-0.82, 0.12,-0.80, 0.24,-0.76);
+    sh.bezierCurveTo(0.36,-0.72, 0.46,-0.68, 0.52,-0.62);
+    sh.lineTo(0.58,-0.52);
+    sh.lineTo(0.50,-0.33);
+    sh.bezierCurveTo(0.38,-0.13, 0.26,0.07, 0.18,0.32);
+    sh.bezierCurveTo(0.10,0.57, 0.03,0.77, 0,0.92);
+    sh.closePath();
+    const geo=new THREE.ExtrudeGeometry(sh,{depth:0.052,bevelEnabled:false});
+    geo.rotateX(Math.PI/2);
+    geo.translate(0,0.025,0);
+    const shieldMesh=new THREE.Mesh(geo,shieldMat);
+    model.add(shieldMesh);
+  })();
+
+  /* ===========================================================
+     COMPLEX 3D SURFACE STRUCTURES — Turbolaser towers, comm arrays,
+     sensor pallets, ventral cannons, command bridge with interior
+     =========================================================== */
+  (function(){
+    const turretMat=new THREE.MeshPhongMaterial({color:0xa0a8b8,specular:0x778899,shininess:30});
+    const turretDark=new THREE.MeshPhongMaterial({color:0x707888,specular:0x445566,shininess:15});
+    const turretGlow=new THREE.MeshBasicMaterial({color:0x8899cc,transparent:true,opacity:0.6});
+    const gunMetal=new THREE.MeshPhongMaterial({color:0x6a7080,specular:0x667788,shininess:25});
+
+    /* ---- Heavy turbolaser towers — tall cylindrical turrets ---- */
+    for(const z of [-0.10, 0.20, 0.45]){
+      for(const s of [-1,1]){
+        const x=s*0.22;
+        /* Tower base platform */
+        const plat=new THREE.Mesh(new THREE.CylinderGeometry(0.014,0.016,0.006,12),turretDark);
+        plat.position.set(x,0.052,z); model.add(plat);
+        /* Tower body — cylindrical */
+        const body=new THREE.Mesh(new THREE.CylinderGeometry(0.008,0.010,0.018,10),turretMat);
+        body.position.set(x,0.064,z); model.add(body);
+        /* Tower dome top */
+        const dome=new THREE.Mesh(new THREE.SphereGeometry(0.009,10,8,0,TAU,0,Math.PI*0.5),
+          turretMat);
+        dome.position.set(x,0.074,z); model.add(dome);
+        /* Twin barrels — rotated to face forward */
+        for(const bOff of [-0.003,0.003]){
+          const barrel=new THREE.Mesh(new THREE.CylinderGeometry(0.0012,0.0015,0.030,6),gunMetal);
+          barrel.rotateX(Math.PI/2);
+          barrel.position.set(x+bOff,0.068,z+0.015); model.add(barrel);
+          /* Barrel muzzle brake */
+          const brake=new THREE.Mesh(new THREE.CylinderGeometry(0.002,0.0012,0.004,6),gunMetal);
+          brake.rotateX(Math.PI/2);
+          brake.position.set(x+bOff,0.068,z+0.031); model.add(brake);
+          /* Muzzle glow — tiny light at barrel tip */
+          const muzzle=new THREE.Mesh(new THREE.SphereGeometry(0.0015,4,3),turretGlow);
+          muzzle.position.set(x+bOff,0.068,z+0.033); model.add(muzzle);
+        }
+        /* Rotation indicator ring */
+        const ring=new THREE.Mesh(new THREE.TorusGeometry(0.010,0.001,6,16),
+          new THREE.MeshPhongMaterial({color:0x606878,specular:0x445566,shininess:20}));
+        ring.rotation.x=Math.PI/2;
+        ring.position.set(x,0.058,z); model.add(ring);
+      }
+    }
+
+    /* ---- Medium twin-barrel turrets ---- */
+    for(const z of [-0.30, 0.0, 0.35]){
+      for(const s of [-1,1]){
+        const x=s*0.30;
+        /* Low-profile turret base */
+        const base=new THREE.Mesh(new THREE.CylinderGeometry(0.007,0.008,0.004,10),turretDark);
+        base.position.set(x,0.054,z); model.add(base);
+        /* Armored housing */
+        const housing=new THREE.Mesh(new THREE.BoxGeometry(0.012,0.006,0.012),turretMat);
+        housing.position.set(x,0.059,z); model.add(housing);
+        /* Twin barrels */
+        for(const bOff of [-0.0025,0.0025]){
+          const barrel=new THREE.Mesh(new THREE.CylinderGeometry(0.0009,0.0011,0.020,5),gunMetal);
+          barrel.rotateX(Math.PI/2);
+          barrel.position.set(x+bOff,0.060,z+0.011); model.add(barrel);
+        }
+      }
+    }
+
+    /* ---- Communication antenna arrays — complex structures on bridge ---- */
+    for(const s of [-1,1]){
+      /* Main comm mast — tall thin cylinder */
+      const mast=new THREE.Mesh(new THREE.CylinderGeometry(0.0008,0.0008,0.040,4),turretMat);
+      mast.position.set(s*0.055,0.290,-0.52); model.add(mast);
+      /* Cross-bar antenna */
+      const cross=new THREE.Mesh(new THREE.CylinderGeometry(0.0005,0.0005,0.020,4),turretMat);
+      cross.rotation.z=Math.PI/2;
+      cross.position.set(s*0.055,0.306,-0.52); model.add(cross);
+      /* Dish at top of mast */
+      const dish=new THREE.Mesh(new THREE.SphereGeometry(0.004,8,6,0,TAU,0,Math.PI*0.5),
+        new THREE.MeshPhongMaterial({color:0xaab0c0,specular:0x778899,shininess:35}));
+      dish.rotation.x=-Math.PI*0.3;
+      dish.position.set(s*0.055,0.309,-0.52); model.add(dish);
+      /* Tip beacon */
+      const beacon=new THREE.Mesh(new THREE.SphereGeometry(0.002,6,4),
+        glowMat(0xff3333,0.9));
+      beacon.position.set(s*0.055,0.311,-0.52); model.add(beacon);
+    }
+
+    /* ---- Sensor pallets along hull edges — protruding structures ---- */
+    for(const s of [-1,1]){
+      for(let k=0;k<6;k++){
+        const t=k/6;
+        const z=-0.20+t*0.60;
+        const hw=(z>-0.48)?0.08+z*0.48:0.52+z*0.04;
+        const x=s*hw*0.85;
+        /* Pallet platform */
+        const pallet=new THREE.Mesh(new THREE.BoxGeometry(0.012,0.003,0.008),turretDark);
+        pallet.position.set(x,0.053,z); model.add(pallet);
+        /* Small antenna on pallet */
+        const ant=new THREE.Mesh(new THREE.CylinderGeometry(0.0004,0.0004,0.008,3),turretMat);
+        ant.position.set(x,0.058,z); model.add(ant);
+        /* Tiny sensor eye */
+        const eye=new THREE.Mesh(new THREE.SphereGeometry(0.001,4,3),
+          glowMat(0x66aacc,0.5));
+        eye.position.set(x,0.063,z); model.add(eye);
+      }
+    }
+
+    /* ---- Ventral cannons — protruding from underside ---- */
+    for(const s of [-1,1]){
+      for(let k=0;k<3;k++){
+        const z=-0.10+k*0.25;
+        const x=s*0.15;
+        /* Cannon housing */
+        const housing=new THREE.Mesh(new THREE.BoxGeometry(0.008,0.006,0.014),turretDark);
+        housing.position.set(x,-0.044,z); model.add(housing);
+        /* Barrel pointing down-forward */
+        const barrel=new THREE.Mesh(new THREE.CylinderGeometry(0.001,0.0013,0.018,5),gunMetal);
+        barrel.rotation.x=Math.PI/2+0.3;
+        barrel.position.set(x,-0.050,z+0.006); model.add(barrel);
+        /* Mount bracket */
+        const bracket=new THREE.Mesh(new THREE.BoxGeometry(0.003,0.008,0.003),turretMat);
+        bracket.position.set(x,-0.038,z); model.add(bracket);
+      }
+    }
+
+    /* ---- Bridge command deck — raised structure with interior light ---- */
+    (function(){
+      const deckMat=new THREE.MeshPhongMaterial({color:0xb0b8c8,specular:0x778899,shininess:40,
+        emissive:0x1a2030,emissiveIntensity:0.1});
+      /* Command deck platform — wider than neck */
+      const platform=new THREE.Mesh(new THREE.BoxGeometry(0.060,0.004,0.065),deckMat);
+      platform.position.set(0,0.244,-0.50); model.add(platform);
+      /* Armored front plate */
+      const frontPlate=new THREE.Mesh(new THREE.BoxGeometry(0.050,0.014,0.003),deckMat);
+      frontPlate.position.set(0,0.248,-0.468); model.add(frontPlate);
+      /* Interior command glow — visible through front viewport slit */
+      const interiorGlow=new THREE.Mesh(new THREE.BoxGeometry(0.042,0.010,0.002),
+        glowMat(0x88bbdd,0.8));
+      interiorGlow.position.set(0,0.249,-0.466); model.add(interiorGlow);
+      /* Window frame bars */
+      for(let i=-4;i<=4;i++){
+        const bar=new THREE.Mesh(new THREE.BoxGeometry(0.001,0.012,0.003),deckMat);
+        bar.position.set(i*0.005,0.249,-0.467); model.add(bar);
+      }
+      /* Side viewports */
+      for(const s of [-1,1]){
+        for(let r=0;r<3;r++){
+          const vp=new THREE.Mesh(new THREE.BoxGeometry(0.002,0.003,0.006),
+            glowMat(0x7799bb,0.5));
+          vp.position.set(s*0.028,0.248+r*0.005,-0.50); model.add(vp);
+        }
+      }
+      /* Top sensor bar */
+      const sensorBar=new THREE.Mesh(new THREE.BoxGeometry(0.050,0.002,0.020),
+        new THREE.MeshPhongMaterial({color:0x606878,specular:0x445566,shininess:25}));
+      sensorBar.position.set(0,0.256,-0.50); model.add(sensorBar);
+      /* Rotating sensor array on top */
+      const sensorDish=new THREE.Mesh(new THREE.CylinderGeometry(0.006,0.006,0.001,8),
+        new THREE.MeshPhongMaterial({color:0x8899aa,specular:0x667788,shininess:30}));
+      sensorDish.position.set(0,0.258,-0.50); model.add(sensorDish);
+    })();
+
+    /* ---- Hangar bay doors — detailed with frame lines ---- */
+    (function(){
+      const doorMat=new THREE.MeshPhongMaterial({color:0x4a5060,specular:0x222832,shininess:5});
+      /* Main hangar door panels */
+      for(const s of [-1,1]){
+        const door=new THREE.Mesh(new THREE.BoxGeometry(0.080,0.002,0.050),doorMat);
+        door.position.set(s*0.050,-0.024,-0.40); model.add(door);
+        /* Door frame */
+        const framePts=[
+          new THREE.Vector3(s*0.010,-0.023,-0.375),
+          new THREE.Vector3(s*0.090,-0.023,-0.375),
+          new THREE.Vector3(s*0.090,-0.023,-0.425),
+          new THREE.Vector3(s*0.010,-0.023,-0.425),
+          new THREE.Vector3(s*0.010,-0.023,-0.375),
+        ];
+        const frameGeo=new THREE.BufferGeometry().setFromPoints(framePts);
+        model.add(new THREE.Line(frameGeo,new THREE.LineBasicMaterial({color:0x5577aa,transparent:true,opacity:0.3})));
+      }
+    })();
+
+    /* ---- Hull-mounted flood lights — illuminate surface from below ---- */
+    for(const s of [-1,1]){
+      for(let k=0;k<3;k++){
+        const z=-0.30+k*0.35;
+        const hw=(z>-0.48)?0.08+z*0.48:0.52+z*0.04;
+        const x=s*hw*0.70;
+        const flood=new THREE.Mesh(new THREE.CylinderGeometry(0.003,0.004,0.003,6),
+          new THREE.MeshBasicMaterial({color:0xccddee}));
+        flood.rotation.x=Math.PI;
+        flood.position.set(x,-0.015,z); model.add(flood);
+        /* Light cone pointing down */
+        const coneGlow=new THREE.Mesh(new THREE.ConeGeometry(0.008,0.015,8,1,true),
+          new THREE.MeshBasicMaterial({color:0x8899aa,transparent:true,opacity:0.08,
+            side:THREE.DoubleSide,fog:false}));
+        coneGlow.rotation.x=Math.PI;
+        coneGlow.position.set(x,-0.025,z); model.add(coneGlow);
+      }
+    }
+  })();
+
+  /* ===========================================================
+     EXTRA 3D SURFACE DETAIL — Dense hull structures,
+     ventral arrays, brim details, spine equipment
+     =========================================================== */
+  (function(){
+    const rng4=mulberry32(321);
+    const mat1=new THREE.MeshPhongMaterial({color:0xa8b0ba,specular:0x667788,shininess:22});
+    const mat2=new THREE.MeshPhongMaterial({color:0x909aa4,specular:0x556677,shininess:18});
+    const mat3=new THREE.MeshPhongMaterial({color:0x707888,specular:0x445566,shininess:12});
+    const matDark=new THREE.MeshPhongMaterial({color:0x5a6070,specular:0x334455,shininess:8});
+    const matGlow=new THREE.MeshBasicMaterial({color:0x88aacc,transparent:true,opacity:0.35});
+
+    /* ---- Dense surface equipment boxes across entire hull ---- */
+    for(let k=0;k<200;k++){
+      const z=-0.55+rng4()*1.30;
+      let hw;
+      if(z>0.65) hw=0.05*z/0.90;
+      else if(z>-0.48) hw=0.08+z*0.48;
+      else hw=0.52+z*0.04;
+      const s=rng4()<0.5?-1:1;
+      const x=s*hw*(0.20+rng4()*0.70);
+      const w=0.003+rng4()*0.012;
+      const h=0.001+rng4()*0.004;
+      const d=0.004+rng4()*0.018;
+      const m=rng4()>0.6?mat1:rng4()>0.4?mat2:mat3;
+      const geo=new THREE.BoxGeometry(w,h,d);
+      geo.translate(x,0.049,z);
+      model.add(new THREE.Mesh(geo,m));
+    }
+
+    /* ---- Raised conduit bundles running along hull centerline ---- */
+    for(let k=0;k<8;k++){
+      const z0=-0.40+rng4()*1.0;
+      const len=0.10+rng4()*0.30;
+      const x=(rng4()-0.5)*0.015; /* tight to centerline */
+      /* Main conduit */
+      const c1=new THREE.Mesh(new THREE.BoxGeometry(0.006,0.004,len),mat2);
+      c1.position.set(x,0.052,z0); model.add(c1);
+      /* Highlight ridge on top */
+      const c1h=new THREE.Mesh(new THREE.BoxGeometry(0.004,0.001,len*0.9),mat1);
+      c1h.position.set(x,0.055,z0); model.add(c1h);
+      /* Parallel conduit pair */
+      if(rng4()>0.4){
+        const x2=x+(rng4()-0.5)*0.012;
+        const c2=new THREE.Mesh(new THREE.BoxGeometry(0.003,0.003,len*0.7),mat3);
+        c2.position.set(x2,0.051,z0); model.add(c2);
+      }
+    }
+
+    /* ---- Cross-hull structural beams ---- */
+    for(let k=0;k<15;k++){
+      const z=-0.45+rng4()*1.20;
+      const s1=-1, s2=1;
+      let hw1, hw2;
+      if(z>-0.48){ hw1=0.08+z*0.48; hw2=hw1; }
+      else { hw1=0.52+z*0.04; hw2=hw1; }
+      const bw=0.002, bh=0.002;
+      const bd=(hw1+hw2)*1.8;
+      const beam=new THREE.Mesh(new THREE.BoxGeometry(bd,bh,bw),matDark);
+      beam.position.set(0,0.048,z); model.add(beam);
+    }
+
+    /* ---- Ventral surface arrays — sensor clusters, equipment pallets ---- */
+    for(let k=0;k<40;k++){
+      const z=-0.40+rng4()*0.90;
+      const x=(rng4()-0.5)*0.30;
+      const w=0.006+rng4()*0.016;
+      const d=0.004+rng4()*0.012;
+      /* Pallet base */
+      const pallet=new THREE.Mesh(new THREE.BoxGeometry(w,0.002,d),matDark);
+      pallet.position.set(x,-0.022,z); model.add(pallet);
+      /* Equipment box on pallet */
+      if(rng4()>0.3){
+        const eq=new THREE.Mesh(new THREE.BoxGeometry(w*0.6,0.002+rng4()*0.003,d*0.6),mat3);
+        eq.position.set(x,-0.020,z); model.add(eq);
+      }
+      /* Tiny antenna stub */
+      if(rng4()>0.6){
+        const ant=new THREE.Mesh(new THREE.CylinderGeometry(0.0003,0.0003,0.006+rng4()*0.008,3),mat1);
+        ant.position.set(x,-0.016,z); model.add(ant);
+        const tip=new THREE.Mesh(new THREE.SphereGeometry(0.0008,3,2),matGlow);
+        tip.position.set(x,-0.013,z); model.add(tip);
+      }
+    }
+
+    /* ---- Brim edge detail — cantilevered sensor pods ---- */
+    for(const s of [-1,1]){
+      for(let k=0;k<10;k++){
+        const z=-0.35+rng4()*0.70;
+        const hw=(z>-0.48)?0.08+z*0.48:0.52+z*0.04;
+        const x=s*hw;
+        /* Pod housing */
+        const pod=new THREE.Mesh(new THREE.BoxGeometry(0.005,0.004,0.010),mat2);
+        pod.position.set(x,0.044,z); model.add(pod);
+        /* Pod sensor lens */
+        const lens=new THREE.Mesh(new THREE.SphereGeometry(0.0015,4,3),matGlow);
+        lens.position.set(x+s*0.003,0.044,z+0.005); model.add(lens);
+      }
+    }
+
+    /* ---- Dorsal spine equipment — detailed ridge of structures ---- */
+    for(let k=0;k<20;k++){
+      const z=-0.50+rng4()*1.30;
+      /* Small box flanking the central spine */
+      for(const s of [-1,1]){
+        const x=s*(0.003+rng4()*0.004);
+        const w=0.002+rng4()*0.005;
+        const h=0.001+rng4()*0.003;
+        const d=0.003+rng4()*0.010;
+        const box=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),rng4()>0.5?mat1:mat2);
+        box.position.set(x,0.052+rng4()*0.002,z); model.add(box);
+      }
+    }
+
+    /* ---- Side hull thermal radiators — fin-like protrusions ---- */
+    for(const s of [-1,1]){
+      for(let k=0;k<8;k++){
+        const z=-0.20+rng4()*0.60;
+        const hw=(z>-0.48)?0.08+z*0.48:0.52+z*0.04;
+        const x=s*hw*0.92;
+        /* Radiator fin — thin vertical box */
+        const fin=new THREE.Mesh(new THREE.BoxGeometry(0.001,0.008,0.015),mat2);
+        fin.position.set(x,0.052,z); model.add(fin);
+        /* Fin detail lines */
+        const finLine=new THREE.Mesh(new THREE.BoxGeometry(0.001,0.001,0.012),matDark);
+        finLine.position.set(x,0.054,z); model.add(finLine);
+      }
+    }
+
+    /* ---- Ventral reactor support structures ---- */
+    for(const s of [-1,1]){
+      for(let k=0;k<4;k++){
+        const angle=(k/4)*Math.PI*2;
+        const r=0.028;
+        const x=s*0.001+Math.cos(angle)*r;
+        const z=-0.38+Math.sin(angle)*r;
+        /* Support strut */
+        const strut=new THREE.Mesh(new THREE.BoxGeometry(0.002,0.006,0.002),matDark);
+        strut.position.set(x,-0.035,z); model.add(strut);
+      }
+    }
+
+    /* ---- Engine mounting detail — reinforcement rings around nozzles ---- */
+    /* (covered by existing engine section, but add forward detail on engine pods) */
+    for(let k=0;k<12;k++){
+      const angle=(k/12)*Math.PI*2;
+      const r=0.010;
+      const z=-0.68;
+      const x=Math.cos(angle)*r;
+      const y=Math.sin(angle)*r-0.087;
+      const ring=new THREE.Mesh(new THREE.TorusGeometry(0.003,0.0008,4,8),mat2);
+      ring.position.set(x,y,z); ring.rotation.x=Math.PI/2;
+      model.add(ring);
+    }
+
+    /* ---- Hull maintenance ladders — tiny rail structures ---- */
+    for(const s of [-1,1]){
+      for(let k=0;k<5;k++){
+        const z=-0.10+k*0.18;
+        const hw=(z>-0.48)?0.08+z*0.48:0.52+z*0.04;
+        const x=s*hw*0.65;
+        /* Ladder rails */
+        for(const dx of [-0.001,0.001]){
+          const rail=new THREE.Mesh(new THREE.BoxGeometry(0.0005,0.020,0.0005),mat1);
+          rail.position.set(x+dx,0.058,z); model.add(rail);
+        }
+        /* Rungs */
+        for(let r=0;r<6;r++){
+          const rung=new THREE.Mesh(new THREE.BoxGeometry(0.002,0.0005,0.0005),mat1);
+          rung.position.set(x,0.049+r*0.003,z); model.add(rung);
+        }
+      }
+    }
+
+    /* ---- Additional communication dishes / sensor globes ---- */
+    for(const s of [-1,1]){
+      /* Small parabolic dish on hull surface */
+      const dish=new THREE.Mesh(new THREE.SphereGeometry(0.005,8,6,0,TAU,0,Math.PI*0.5),
+        new THREE.MeshPhongMaterial({color:0x9aa0b0,specular:0x778899,shininess:30}));
+      dish.rotation.x=Math.PI;
+      dish.rotation.z=s*0.3;
+      dish.position.set(s*0.18,0.054,0.10);
+      model.add(dish);
+      /* Dish mount arm */
+      const arm=new THREE.Mesh(new THREE.BoxGeometry(0.003,0.003,0.008),mat2);
+      arm.position.set(s*0.18,0.052,0.096); model.add(arm);
+      /* Second smaller dish */
+      const dish2=new THREE.Mesh(new THREE.SphereGeometry(0.003,6,4,0,TAU,0,Math.PI*0.5),
+        new THREE.MeshPhongMaterial({color:0x8890a0,specular:0x667788,shininess:25}));
+      dish2.rotation.x=Math.PI;
+      dish2.position.set(s*0.32,0.052,-0.15);
+      model.add(dish2);
+    }
+
+    /* ---- Ventral scanning arrays — protruding boxes underneath ---- */
+    for(let k=0;k<6;k++){
+      const z=-0.30+k*0.12;
+      const x=(rng4()-0.5)*0.12;
+      const scanBox=new THREE.Mesh(new THREE.BoxGeometry(0.010,0.004,0.006),mat2);
+      scanBox.position.set(x,-0.024,z); model.add(scanBox);
+      /* Sensor window on bottom of scan box */
+      const sWin=new THREE.Mesh(new THREE.BoxGeometry(0.006,0.001,0.003),matGlow);
+      sWin.position.set(x,-0.027,z); model.add(sWin);
+    }
+
+    /* ---- Hull surface raised rail lines ---- */
+    for(let k=0;k<12;k++){
+      const z=-0.50+rng4()*1.30;
+      const s=rng4()<0.5?-1:1;
+      const hw=(z>-0.48)?0.08+z*0.48:0.52+z*0.04;
+      const x=s*hw*(0.30+rng4()*0.40);
+      const len=0.04+rng4()*0.12;
+      /* Rail */
+      const rail=new THREE.Mesh(new THREE.BoxGeometry(0.001,0.002,len),mat1);
+      rail.position.set(x,0.050,z); model.add(rail);
+      /* Rail supports */
+      for(let r=0;r<3;r++){
+        const rz=z-len/2+len*r/2;
+        const sup=new THREE.Mesh(new THREE.BoxGeometry(0.002,0.001,0.001),matDark);
+        sup.position.set(x,0.049,rz); model.add(sup);
+      }
+    }
+  })();
 
   /* ---------- SILLAGE ---------- */
   const TRAIL=240;
@@ -5506,6 +7986,75 @@ const SHIP={};
   curve.getPoint(0,P); PREV.copy(P); ship.position.copy(P);
   curve.getTangent(0,lastTan).normalize();
 
+  /* ---------- ÉTAT DE VOL LIBRE ---------- */
+  let freeFlight=false;
+  const vel=new THREE.Vector3();
+  const eul=new THREE.Euler(0,0,0,'YXZ');
+  const _fwd=new THREE.Vector3(),_up=new THREE.Vector3(),_rt=new THREE.Vector3();
+  const FLIGHT={
+    thrust:120, boost:320, drag:0.982, angDrag:0.88,
+    yawSpd:2.2, pitchSpd:1.8, rollSpd:3.5, mouseSens:0.0015, maxSpeed:500,
+    /* Smooth rotation interpolation factor — lower = smoother/lazier */
+    rotLerp:8, moveLerp:10,
+  };
+  /* FPS-style mouse look state — with smoothing accumulator */
+  let mouseAimYaw=0, mouseAimPitch=0;
+  let _mouseSmoothYaw=0, _mouseSmoothPitch=0; /* smoothed targets */
+  let isDoding=false, dodgeTimer=0, dodgeDir=0; /* Q/E spin dodge */
+  const _qTarget=new THREE.Quaternion(), _qSmooth=new THREE.Quaternion();
+  const _qDodge=new THREE.Quaternion();
+
+  /* ---- FPS mouse look via pointer lock — with smooth accumulation ---- */
+  window.addEventListener('mousemove',e=>{
+    if(!SHIP.freeFlight||!document.pointerLockElement) return;
+    _mouseSmoothYaw-=e.movementX*FLIGHT.mouseSens;
+    _mouseSmoothPitch-=e.movementY*FLIGHT.mouseSens;
+    _mouseSmoothPitch=Math.max(-Math.PI/2.1,Math.min(Math.PI/2.1,_mouseSmoothPitch));
+  });
+  document.addEventListener('pointerlockchange',()=>{
+    document.body.classList.toggle('pointer-lock',!!document.pointerLockElement);
+  });
+
+  const _colliders=[];
+  _colliders.push({p:SOLAR_POS,r:28,name:'Soleil'});
+  _colliders.push({p:BH2_POS,r:25,name:'Trou noir'});
+  _colliders.push({p:M13_POS,r:180,name:'M13'});
+  _colliders.push({p:ANDR_POS,r:600,name:'Andromede'});
+  function refreshColliders(){
+    _colliders.length=4;
+    for(const pl of planets){
+      if(!pl.anchor) continue;
+      const wp=new THREE.Vector3();
+      pl.anchor.getWorldPosition(wp);
+      _colliders.push({p:wp,r:Math.max((pl.mesh.geometry.parameters.radius||1)*4, 0.8),name:pl.name||'?'});
+    }
+  }
+
+  SHIP.freeFlight=false;
+  SHIP.dodging=false;
+  SHIP.toggleFreeFlight=function(){
+    freeFlight=!freeFlight;
+    SHIP.freeFlight=freeFlight;
+    if(freeFlight){
+      vel.copy(TAN).multiplyScalar(warp()*0.3);
+      eul.setFromQuaternion(ship.quaternion,'YXZ');
+      mouseAimYaw=eul.y;
+      mouseAimPitch=eul.x;
+      refreshColliders();
+      controls.enabled=false;
+      isDoding=false; dodgeTimer=0;
+      /* Request pointer lock for FPS mouse look */
+      try{ renderer.domElement.requestPointerLock(); }catch(e){}
+    } else {
+      vel.set(0,0,0);
+      tFill=0; tHead=0; tGeo.setDrawRange(0,0);
+      controls.enabled=true;
+      try{ document.exitPointerLock(); }catch(e){}
+      /* ---- CLEANUP: hide all combat effects when exiting combat ---- */
+      if(typeof SHIP!=='undefined' && SHIP.cleanup) SHIP.cleanup();
+    }
+  };
+
   /* Le vaisseau va a c. Ce que regle le curseur « Vitesse », c'est la
      COMPRESSION DU TEMPS. L'exposant 1.6 elargit la plage utile : en bas du
      curseur on flane dans le Systeme solaire, en haut on franchit le vide
@@ -5535,10 +8084,85 @@ const SHIP={};
   SHIP.destName=destName;
 
   SHIP.update=function(dt){
-    const speed=warp();                           /* unites de scene par seconde */
+    let speed=0;
+    if(freeFlight){
+      /* ========== FPS-STYLE FREE FLIGHT (Counter-Strike feel) ========== */
+      /* --- Smooth mouse aim — lerp toward accumulated mouse input --- */
+      const mouseSmooth=1-Math.exp(-10*dt); /* high factor = responsive but smooth */
+      mouseAimYaw+=(_mouseSmoothYaw-mouseAimYaw)*mouseSmooth;
+      mouseAimPitch+=(_mouseSmoothPitch-mouseAimPitch)*mouseSmooth;
+
+      /* Build target quaternion from smoothed yaw + pitch */
+      _qTarget.setFromEuler(new THREE.Euler(mouseAimPitch, mouseAimYaw, 0, 'YXZ'));
+
+      /* --- E/Q spin dodge --- */
+      if(KEYS['KeyQ']&&!isDoding){ isDoding=true; dodgeTimer=0.35; dodgeDir=-1; }
+      if(KEYS['KeyE']&&!isDoding){ isDoding=true; dodgeTimer=0.35; dodgeDir=1; }
+      if(isDoding){
+        dodgeTimer-=dt;
+        _qDodge.setFromAxisAngle(new THREE.Vector3(0,0,1), dodgeDir*8*dodgeTimer);
+        _qTarget.multiply(_qDodge);
+        if(dodgeTimer<=0){ isDoding=false; dodgeDir=0; _qDodge.identity(); }
+      }
+      SHIP.dodging=isDoding;
+
+      /* --- Smooth slerp toward target orientation --- */
+      ship.quaternion.slerp(_qTarget, 1 - Math.exp(-FLIGHT.rotLerp * dt));
+
+      /* --- WASD movement in ship-local space --- */
+      _fwd.set(0,0,1).applyQuaternion(ship.quaternion);
+      _up.set(0,1,0).applyQuaternion(ship.quaternion);
+      _rt.set(1,0,0).applyQuaternion(ship.quaternion);
+
+      let thrustVal=0;
+      let strafeVal=0;
+      let liftVal=0;
+      /* W = forward, S = backward */
+      if(KEYS['KeyW']) thrustVal= FLIGHT.thrust;
+      if(KEYS['KeyS']) thrustVal=-FLIGHT.thrust*0.6;
+      /* A = strafe left, D = strafe right */
+      if(KEYS['KeyA']) strafeVal=-FLIGHT.thrust*0.7;
+      if(KEYS['KeyD']) strafeVal= FLIGHT.thrust*0.7;
+      /* Space = thrust up, C = thrust down */
+      if(KEYS['Space']) liftVal= FLIGHT.thrust*0.4;
+      if(KEYS['KeyC']) liftVal=-FLIGHT.thrust*0.4;
+      /* Shift = boost */
+      if(KEYS['ShiftLeft']||KEYS['ShiftRight']) thrustVal*=2.5;
+      /* Z = reverse (same as S) */
+
+      /* Apply thrust in ship-local axes */
+      vel.addScaledVector(_fwd, thrustVal*dt);
+      vel.addScaledVector(_rt, strafeVal*dt);
+      vel.addScaledVector(_up, liftVal*dt);
+
+      /* Smooth drag for fluid deceleration */
+      vel.multiplyScalar(Math.pow(FLIGHT.drag, dt*60));
+
+      const sp=vel.length();
+      if(sp>FLIGHT.maxSpeed) vel.multiplyScalar(FLIGHT.maxSpeed/sp);
+      if(sp<0.1 && thrustVal===0 && strafeVal===0 && liftVal===0) vel.multiplyScalar(0.92);
+
+      PREV.copy(P);
+      P.addScaledVector(vel,dt);
+      ship.position.copy(P);
+
+      /* Collider bounce */
+      for(const c of _colliders){
+        const d=P.distanceTo(c.p);
+        if(d<c.r){
+          const n=new THREE.Vector3().subVectors(P,c.p).normalize();
+          P.copy(c.p).addScaledVector(n,c.r+0.1);
+          vel.reflect(n).multiplyScalar(0.3);
+          ship.position.copy(P);
+        }
+      }
+      speed=vel.length();
+    } else {
+      /* ========== MODE RAIL (trajet spline) ========== */
+    speed=warp();
     const step=speed*dt;
     travelled+=step;
-    tP=(tP+step/Math.max(1e-6,dLdt(tP)))%1;       /* reparametrage local exact */
+    tP=(tP+step/Math.max(1e-6,dLdt(tP)))%1;
     PREV.copy(P);
     curve.getPoint(tP,P);
     curve.getTangent(tP,TAN).normalize();
@@ -5557,23 +8181,32 @@ const SHIP={};
     qRoll.setFromAxisAngle(ZAX,bank);
     qTarget.copy(dummy.quaternion).multiply(qRoll);
     ship.quaternion.slerp(qTarget,1-Math.exp(-dt*5));
+    } /* fin du else (mode rail) */
 
     /* Taille apparente : a l'echelle de la Galaxie, un vaisseau de 60 m est
        invisible. On le dilate avec la distance pour qu'il garde une taille
        lisible a l'ecran, comme un marqueur — jamais en dessous du reel. */
     const dCam=camera.position.distanceTo(P);
-    ship.scale.setScalar(THREE.MathUtils.clamp(dCam/95,1,900)*3.2);
+    ship.scale.setScalar(THREE.MathUtils.clamp(dCam/60,1,900)*4.5);
 
-    /* propulsion : le panache respire, les anneaux tournent, le strobe bat */
-    const th=THREE.MathUtils.clamp(simSpeed/6,0.25,1.6);
-    const fl=0.85+0.15*Math.sin(clock.elapsedTime*17.0);
+    /* propulsion — ALWAYS visible, even at low speed */
+    const th=THREE.MathUtils.clamp(simSpeed/4,0.5,2.0);
+    const fl=0.92+0.08*Math.sin(clock.elapsedTime*17.0);
+    const thFlick=th*fl;
     for(const p of plumes){
-      p.scale.set(1,1,(0.60+1.05*th)*fl);
-      p.material.opacity=(0.28+0.32*th)*fl;
+      /* Main exhaust cones — elongate with thrust, minimum scale always visible */
+      p.scale.set(1,1,(1.0+1.40*thFlick));
+      p.material.opacity=(0.40+0.35*thFlick);
     }
     for(let i=0;i<rings.length;i++) rings[i].rotation.z+=dt*(i%2?-2.6:2.6)*(0.4+th);
     strobe.material.opacity=(clock.elapsedTime%1.15)<0.09?0.95:0;
-    halo.material.opacity=0.28+0.16*fl;
+    strobeLight.intensity=(clock.elapsedTime%1.15)<0.09?0.5:0;
+    auraTop.material.opacity=0.30+0.10*Math.sin(clock.elapsedTime*0.8);
+
+    /* update lasers / effects */
+    if(SHIP.updateLasers) SHIP.updateLasers(dt);
+    /* update enemies */
+    if(typeof ENEMIES!=='undefined'&&ENEMIES.update) ENEMIES.update(dt);
 
     /* sillage : chapelet de points qui s'eteint derriere le vaisseau */
     if(PREV.distanceToSquared(P)>1e-8){
@@ -5581,7 +8214,7 @@ const SHIP={};
       tHead=(tHead+1)%TRAIL; tFill=Math.min(TRAIL,tFill+1);
       for(let i=0;i<tFill;i++){
         const idx=(tHead-1-i+TRAIL*2)%TRAIL, f=Math.pow(1-i/tFill,2);
-        tCol[idx*3]=0.35*f; tCol[idx*3+1]=0.72*f; tCol[idx*3+2]=1.0*f;
+        tCol[idx*3]=1.0*f; tCol[idx*3+1]=0.45*f; tCol[idx*3+2]=0.08*f;
       }
       tGeo.attributes.position.needsUpdate=true;
       tGeo.attributes.color.needsUpdate=true;
@@ -5609,18 +8242,746 @@ const SHIP={};
     hudT-=dt;
     if(hud&&hud.style.display!=='none'&&hudT<=0){
       hudT=0.12;
-      const ly=travelled/GAL_LY;              /* annees-lumiere parcourues */
-      const yps=speed/GAL_LY;                 /* annees ecoulees par seconde */
-      hudTxt.innerHTML='🛸 <b>L’Éclaireur</b> &nbsp;·&nbsp; vitesse <b>c</b> — 299 792 458 m/s'+
-        ' &nbsp;·&nbsp; cap sur <b>'+destName()+'</b>';
-      hudSub.innerHTML='Parcouru <b>'+fmt(ly)+' al</b> en <b>'+fmt(ly)+' ans</b>'+
-        ' &nbsp;·&nbsp; compression du temps <b>'+fmt(yps)+' ans/s</b>'+
-        '<div class="note">Le curseur « Vitesse » règle la compression du temps, pas la vitesse du vaisseau : '+
-        'à c, elle ne change jamais. Réappuyer sur 🛸 saute à l’étape suivante.</div>';
+      if(freeFlight){
+        const sp=vel.length();
+        const spdFmt=sp>=100?(sp.toFixed(0)):(sp.toFixed(1));
+        /* Enemy status */
+        const eCount=(typeof ENEMIES!=='undefined'&&ENEMIES.aliveCount)?ENEMIES.aliveCount():0;
+        const score=(typeof ENEMIES!=='undefined')?ENEMIES.score:0;
+        const hp=(typeof ENEMIES!=='undefined')?ENEMIES.playerHp:100;
+        const maxHp=(typeof ENEMIES!=='undefined')?ENEMIES.playerMaxHp:100;
+        const killN=(typeof ENEMIES!=='undefined')?ENEMIES.killCount:0;
+        const waveN=(typeof ENEMIES!=='undefined')?ENEMIES.wave:0;
+        /* HP bar */
+        const hpPct=Math.round(hp/maxHp*100);
+        const hpColor=hpPct>60?'#44ff66':hpPct>30?'#ffaa22':'#ff3333';
+        const invFlash=(typeof ENEMIES!=='undefined'&&ENEMIES.invincible>0)?' ⚡BOUCLIER':'';
+        const hpBar='<div style="margin-top:4px;background:#111;border:1px solid #444;border-radius:3px;height:10px;width:200px;display:inline-block;vertical-align:middle"><div style="background:'+hpColor+';height:100%;width:'+hpPct+'%;border-radius:2px"></div></div> <span style="color:'+hpColor+'">'+hp+'/'+maxHp+'</span>'+invFlash;
+        const scoreInfo='<span style="color:#ffcc00"> ★ '+score+'</span> · <span style="color:#ff8844">☠ '+killN+'</span> · Vague '+waveN+(eCount>0?' · <span style="color:#ff4444">⚡ '+eCount+' ennemi'+(eCount>1?'s':'')+'</span>':'');
+        const hit=SHIP.lastHit;
+        const hitInfo=hit?' &nbsp;·&nbsp; <span style="color:#ff6644">TOUCHÉ à '+hit.distance.toFixed(0)+' u</span>':'';
+        hudTxt.innerHTML='⚔️ <b>Star Destroyer Impérial</b>  ·  <span style="color:#ff9944">VOL LIBRE</span>'+
+          '  ·  vitesse <b>'+spdFmt+' u/s</b>'+
+          '  ·  position <b>'+P.x.toFixed(0)+', '+P.y.toFixed(0)+', '+P.z.toFixed(0)+'</b>'+
+          '<br>'+scoreInfo+' '+hpBar;
+        hudSub.innerHTML='<b>Contrôles :</b> Souris visée · W/S avant/arrière · A/D strafe · '+
+          'Espace/C haut/bas · Shift boost · <b>Q/E esquive</b> · F rail · <b>Clic = tirer</b>'+hitInfo+
+          '<div class="note">E/Q = esquive rotative (70% d\'évitation lasers). Maintenez en enfilade !</div>';
+      } else {
+        const ly=travelled/GAL_LY;
+        const yps=speed/GAL_LY;
+        hudTxt.innerHTML='🛸 <b>Star Destroyer Impérial</b>  ·  vitesse <b>c</b> — 299 792 458 m/s'+
+          '  ·  cap sur <b>'+destName()+'</b>';
+        hudSub.innerHTML='Parcouru <b>'+fmt(ly)+' al</b> en <b>'+fmt(ly)+' ans</b>'+
+          '  ·  compression du temps <b>'+fmt(yps)+' ans/s</b>'+
+          '<div class="note">Le curseur « Vitesse » règle la compression du temps, pas la vitesse du vaisseau : '+
+          'à c, elle ne change jamais. Réappuyer sur 🛸 saute à l\'étape suivante. <b>F</b> = vol libre.</div>';
+      }
     }
   };
 })();
 
+
+/* ===========================================================
+   ENEMY AI — Imperial TIE Fighters + CR90 Corvettes
+   =========================================================== */
+const ENEMIES={};
+(function(){
+  /* Local glow helper (same as ship IIFE's glowMat) */
+  const _glowMat=(hex,op)=>new THREE.MeshBasicMaterial({color:hex,transparent:true,
+    opacity:op||0.25,blending:THREE.NormalBlending,depthWrite:false,fog:false});
+  /* Reference ship position (same vector as P inside ship IIFE) */
+  const P=SHIP.position;
+  const _playerVel=new THREE.Vector3();  /* filled each frame with approximate player velocity */
+
+  /* ---------- Enemy types ---------- */
+  const TYPES={
+      tie:{name:'TIE Fighter',hp:1,speed:55,fireRate:2.0,damage:5,score:100,
+      color:0x556677,cockpitColor:0x88aacc,scale:18,range:350,
+      orbitDist:100,approachDist:450},
+      corvette:{name:'CR90 Corvette',hp:1,speed:30,fireRate:1.5,damage:12,score:500,
+      color:0x665544,cockpitColor:0x998877,scale:30,range:500,
+      orbitDist:180,approachDist:600},
+  };
+
+  /* ---------- Build TIE Fighter — detailed Star Wars style ---------- */
+  function buildTIE(){
+    const grp=new THREE.Group();
+    const frameMat=new THREE.MeshPhongMaterial({color:0x506070,specular:0x667788,shininess:30});
+    /* Spherical cockpit */
+    const cockpitMat=new THREE.MeshPhongMaterial({color:0x334455,specular:0x88aacc,shininess:80,emissive:0x112233,emissiveIntensity:0.5});
+    grp.add(new THREE.Mesh(new THREE.SphereGeometry(0.12,20,16),cockpitMat));
+    /* Viewport window */
+    const win=new THREE.Mesh(new THREE.SphereGeometry(0.06,14,10,0,TAU,0,Math.PI*0.45),
+      new THREE.MeshBasicMaterial({color:0x4488ff,transparent:true,opacity:0.9}));
+    win.position.z=0.06; grp.add(win);
+    /* Viewport frame ring */
+    const fr=new THREE.Mesh(new THREE.TorusGeometry(0.062,0.005,6,8),frameMat); fr.position.z=0.063; grp.add(fr);
+    /* Equator band */
+    const bg=new THREE.TorusGeometry(0.122,0.004,6,20); bg.rotateX(Math.PI/2); grp.add(new THREE.Mesh(bg,frameMat));
+    /* Top dome hatch */
+    const ht=new THREE.Mesh(new THREE.SphereGeometry(0.04,10,6,0,TAU,0,Math.PI*0.4),frameMat); ht.position.y=0.11; grp.add(ht);
+    /* Bottom hatch */
+    const bh=new THREE.Mesh(new THREE.SphereGeometry(0.035,8,6,0,TAU,Math.PI*0.6,Math.PI*0.4),frameMat); bh.position.y=-0.11; grp.add(bh);
+    /* Solar panel wings */
+    const wingMat=new THREE.MeshPhongMaterial({color:0x1a2233,specular:0x4466aa,shininess:40,emissive:0x0a1122,emissiveIntensity:0.3,side:THREE.DoubleSide});
+    for(const s of [-1,1]){
+      const wp=new THREE.Mesh(new THREE.CircleGeometry(0.22,6),wingMat); wp.position.set(s*0.36,0,0); wp.rotation.y=Math.PI/2; grp.add(wp);
+      /* Cell rings */
+      for(let r=0;r<3;r++){
+        const cr=0.06+r*0.055;
+        const cell=new THREE.Mesh(new THREE.RingGeometry(cr-0.008,cr,6),new THREE.MeshPhongMaterial({color:0x151d2d,specular:0x3355aa,shininess:50,emissive:0x081020,emissiveIntensity:0.2,side:THREE.DoubleSide}));
+        cell.position.set(s*0.359,0,0); cell.rotation.y=Math.PI/2; grp.add(cell);
+      }
+      /* Structural ribs */
+      for(let a=0;a<6;a++){
+        const ang=a/6*TAU+Math.PI/6;
+        const pts=[new THREE.Vector3(0,0,0),new THREE.Vector3(Math.cos(ang)*0.22,Math.sin(ang)*0.22,0)];
+        const l=new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),new THREE.LineBasicMaterial({color:0x334466,transparent:true,opacity:0.3}));
+        l.position.set(s*0.358,0,0); l.rotation.y=Math.PI/2; grp.add(l);
+      }
+      /* Strut */
+      const st=new THREE.Mesh(new THREE.CylinderGeometry(0.014,0.014,0.28,8),frameMat); st.rotation.z=Math.PI/2; st.position.set(s*0.18,0,0); grp.add(st);
+      const co=new THREE.Mesh(new THREE.CylinderGeometry(0.018,0.018,0.02,8),frameMat); co.rotation.z=Math.PI/2; co.position.set(s*0.12,0,0); grp.add(co);
+      /* Edge glow */
+      const eg=new THREE.Mesh(new THREE.RingGeometry(0.19,0.23,6),new THREE.MeshBasicMaterial({color:0x3366cc,transparent:true,opacity:0.18,blending:THREE.NormalBlending,side:THREE.DoubleSide,depthWrite:false}));
+      eg.position.set(s*0.36,0,0); eg.rotation.y=Math.PI/2; grp.add(eg);
+    }
+    /* Twin ion engines */
+    for(const s of [-1,1]){
+      const ec=new THREE.Mesh(new THREE.SphereGeometry(0.045,10,8),new THREE.MeshBasicMaterial({color:0x66aaff,transparent:true,opacity:0.6})); ec.position.set(s*0.06,-0.03,-0.13); grp.add(ec);
+      const nr=new THREE.Mesh(new THREE.TorusGeometry(0.038,0.004,6,12),frameMat); nr.position.set(s*0.06,-0.03,-0.125); grp.add(nr);
+      const sg=new THREE.Sprite(new THREE.SpriteMaterial({map:softTex,color:0x4488ff,transparent:true,opacity:0.35,blending:THREE.NormalBlending,depthWrite:false,fog:false}));
+      sg.position.set(s*0.06,-0.03,-0.16); sg.scale.setScalar(0.08); grp.add(sg);
+      /* Ion exhaust trail */
+      const tg=new THREE.ConeGeometry(0.02,0.15,8,1,true); tg.rotateX(Math.PI/2); tg.translate(s*0.06,-0.03,-0.20);
+      grp.add(new THREE.Mesh(tg,new THREE.MeshBasicMaterial({color:0x4477cc,transparent:true,opacity:0.25,blending:THREE.NormalBlending,depthWrite:false,side:THREE.DoubleSide,fog:false})));
+    }
+    /* Laser cannons */
+    for(const s of [-1,1]){
+      const cm=new THREE.MeshPhongMaterial({color:0x445566,specular:0x667788,shininess:30});
+      const b=new THREE.Mesh(new THREE.CylinderGeometry(0.006,0.008,0.06,6),cm); b.rotateX(Math.PI/2); b.position.set(s*0.08,-0.08,0.12); grp.add(b);
+      const t=new THREE.Mesh(new THREE.SphereGeometry(0.008,6,4),new THREE.MeshBasicMaterial({color:0xff4422,transparent:true,opacity:0.4})); t.position.set(s*0.08,-0.08,0.15); grp.add(t);
+    }
+    grp.scale.setScalar(TYPES.tie.scale);
+    return grp;
+  }
+
+  /* ---------- Build CR90 Corvette — detailed Star Wars style ---------- */
+  function buildCorvette(){
+    const grp=new THREE.Group();
+    const hullMat=new THREE.MeshPhongMaterial({color:0x8a7e70,specular:0x887766,shininess:30,emissive:0x1a1510,emissiveIntensity:0.15});
+    const hullDark=new THREE.MeshPhongMaterial({color:0x605848,specular:0x554433,shininess:20});
+    /* Main hull */
+    grp.add(new THREE.Mesh(new THREE.BoxGeometry(0.14,0.08,0.50),hullMat));
+    /* Hull panel lines */
+    for(const dy of [-0.02,0.02]){
+      for(const sx of [-0.07,0.07]){
+        const pts=[new THREE.Vector3(sx,dy,0.24),new THREE.Vector3(sx,dy,-0.24)];
+        grp.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),new THREE.LineBasicMaterial({color:0x443322,transparent:true,opacity:0.3})));
+      }
+    }
+    /* Vertical ribs */
+    for(let z=-0.18;z<0.22;z+=0.08){
+      for(const sx of [-0.07,0.07]){
+        const pts=[new THREE.Vector3(sx,-0.04,z),new THREE.Vector3(sx,0.04,z)];
+        grp.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),new THREE.LineBasicMaterial({color:0x332211,transparent:true,opacity:0.2})));
+      }
+    }
+    /* Hammerhead bow */
+    const bow=new THREE.Mesh(new THREE.BoxGeometry(0.24,0.05,0.08),hullMat); bow.position.set(0,0,0.28); grp.add(bow);
+    /* Bow detail — mandibles */
+    for(const s of [-1,1]){
+      const m=new THREE.Mesh(new THREE.BoxGeometry(0.03,0.02,0.10),hullDark); m.position.set(s*0.10,0.01,0.30); grp.add(m);
+    }
+    /* Bow sensor dish */
+    const dish=new THREE.Mesh(new THREE.SphereGeometry(0.02,8,6,0,TAU,0,Math.PI),hullDark); dish.rotation.x=Math.PI; dish.position.set(0,0.03,0.33); grp.add(dish);
+    /* Engine block */
+    const eb=new THREE.Mesh(new THREE.BoxGeometry(0.10,0.06,0.08),hullDark); eb.position.set(0,-0.005,-0.28); grp.add(eb);
+    /* Engine mounting pylons */
+    for(const s of [-1,1]){
+      const p=new THREE.Mesh(new THREE.BoxGeometry(0.004,0.04,0.06),hullDark); p.position.set(s*0.04,0,-0.30); grp.add(p);
+    }
+    /* Engine nozzles with interior glow */
+    for(const s of [-1,1]){
+      const nz=new THREE.Mesh(new THREE.CylinderGeometry(0.025,0.030,0.03,10),hullDark);
+      nz.rotation.x=Math.PI/2; nz.position.set(s*0.03,-0.01,-0.33); grp.add(nz);
+      const eg=new THREE.Mesh(new THREE.SphereGeometry(0.030,10,8),new THREE.MeshBasicMaterial({color:0xff6633,transparent:true,opacity:0.5})); eg.position.set(s*0.03,-0.01,-0.34); grp.add(eg);
+      const egS=new THREE.Sprite(new THREE.SpriteMaterial({map:softTex,color:0xff5511,transparent:true,opacity:0.3,blending:THREE.NormalBlending,depthWrite:false,fog:false}));
+      egS.position.set(s*0.03,-0.01,-0.37); egS.scale.setScalar(0.08); grp.add(egS);
+      /* Engine exhaust cone */
+      const ecg=new THREE.ConeGeometry(0.015,0.08,8,1,true); ecg.rotateX(Math.PI/2); ecg.translate(s*0.03,-0.01,-0.38);
+      grp.add(new THREE.Mesh(ecg,new THREE.MeshBasicMaterial({color:0xff6622,transparent:true,opacity:0.2,blending:THREE.NormalBlending,depthWrite:false,side:THREE.DoubleSide,fog:false})));
+    }
+    /* Turret on top */
+    const tMat=new THREE.MeshPhongMaterial({color:0x776655,specular:0x665544,shininess:20});
+    const tur=new THREE.Mesh(new THREE.CylinderGeometry(0.02,0.024,0.012,10),tMat); tur.position.set(0,0.045,0.06); grp.add(tur);
+    /* Turbolasers */
+    for(const s of [-1,1]){
+      const b=new THREE.Mesh(new THREE.CylinderGeometry(0.005,0.006,0.04,6),tMat); b.rotateX(Math.PI/2); b.position.set(s*0.04,0.05,0.10); grp.add(b);
+      const mt=new THREE.Mesh(new THREE.SphereGeometry(0.008,6,4),new THREE.MeshBasicMaterial({color:0xff4422,transparent:true,opacity:0.5})); mt.position.set(s*0.04,0.05,0.12); grp.add(mt);
+    }
+    /* Bottom turret */
+    const bt=new THREE.Mesh(new THREE.CylinderGeometry(0.016,0.020,0.010,8),tMat); bt.position.set(0,-0.045,0.0); grp.add(bt);
+    for(const s of [-1,1]){
+      const b=new THREE.Mesh(new THREE.CylinderGeometry(0.004,0.005,0.03,5),tMat); b.rotateX(Math.PI/2); b.position.set(s*0.03,-0.05,0.0); grp.add(b);
+    }
+    /* Running lights along edges */
+    for(const s of [-1,1]){
+      for(let k=0;k<6;k++){
+        const z=-0.22+k*0.09;
+        const l=new THREE.Mesh(new THREE.SphereGeometry(0.004,4,3),_glowMat(0x4488cc,0.6));
+        l.position.set(s*0.075,0.042,z); grp.add(l);
+        const l2=new THREE.Mesh(new THREE.SphereGeometry(0.003,3,2),_glowMat(0xcc4444,0.5));
+        l2.position.set(s*0.075,-0.042,z); grp.add(l2);
+      }
+    }
+    /* Shield glow */
+    const sg=new THREE.Sprite(new THREE.SpriteMaterial({map:softTex,color:0x556688,transparent:true,opacity:0.06,blending:THREE.NormalBlending,depthWrite:false,fog:false}));
+    sg.scale.setScalar(0.9); grp.add(sg);
+    grp.scale.setScalar(TYPES.corvette.scale);
+    return grp;
+  }
+
+  /* ---------- Enemy pool ---------- */
+  const MAX_ENEMIES=10;
+  const enemies=[];
+  const enemyLasers=[];        /* enemy projectiles */
+  const MAX_ENEMY_LASERS=40;
+  const _eRay=new THREE.Raycaster();
+
+  /* Explosion pool — moderate pool for kills */
+  const _explosionPool=[];
+  for(let i=0;i<20;i++){
+    const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:softTex,color:0xffffff,
+      transparent:true,opacity:0,blending:THREE.NormalBlending,depthWrite:false,fog:false}));
+    sp.visible=false; sp.renderOrder=12; scene.add(sp);
+    _explosionPool.push({sprite:sp,life:0,maxLife:0});
+  }
+
+  /* ---- Score popup pool — floating text when killing enemies ---- */
+  const _scorePopups=[];
+  function makeScoreCanvas(txt){
+    const c=document.createElement('canvas'); c.width=256; c.height=64;
+    const g=c.getContext('2d');
+    g.font='bold 28px Arial';
+    g.textAlign='center'; g.textBaseline='middle';
+    g.shadowColor='#ff8800'; g.shadowBlur=12;
+    g.fillStyle='#ffdd00';
+    g.fillText(txt,128,32);
+    return c;
+  }
+  for(let i=0;i<8;i++){
+    const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(makeScoreCanvas('')),
+      transparent:true,opacity:0,depthWrite:false,fog:false}));
+    sp.visible=false; sp.renderOrder=16; scene.add(sp);
+    _scorePopups.push({sprite:sp,life:0,maxLife:0,velY:0});
+  }
+  function showScorePopup(pos,score){
+    const sp=_scorePopups.find(x=>x.life<=0);
+    if(!sp) return;
+    sp.life=1.5; sp.maxLife=1.5; sp.velY=8;
+    sp.sprite.position.copy(pos).add(new THREE.Vector3(0,3,0));
+    sp.sprite.visible=true;
+    sp.sprite.material.opacity=1;
+    sp.sprite.material.map.image.getContext('2d').clearRect(0,0,256,64);
+    const g=sp.sprite.material.map.image.getContext('2d');
+    g.font='bold 28px Arial';
+    g.textAlign='center'; g.textBaseline='middle';
+    g.shadowColor='#ff8800'; g.shadowBlur=12;
+    g.fillStyle='#ffdd00';
+    g.fillText('+'+score,128,32);
+    sp.sprite.material.map.needsUpdate=true;
+    sp.sprite.scale.set(16,4,1);
+  }
+
+  /* Enemy laser beam meshes — bigger pool, dual color textures */
+  const enemyLaserTexRed=canvasTex(256,256,(g)=>{
+    const gr=g.createRadialGradient(128,128,0,128,128,128);
+    gr.addColorStop(0,'rgba(255,80,40,1)');
+    gr.addColorStop(0.15,'rgba(255,40,20,0.8)');
+    gr.addColorStop(0.40,'rgba(255,20,10,0.3)');
+    gr.addColorStop(1,'rgba(0,0,0,0)');
+    g.fillStyle=gr; g.fillRect(0,0,256,256);
+  });
+  const enemyLaserTexBlue=canvasTex(256,256,(g)=>{
+    const gr=g.createRadialGradient(128,128,0,128,128,128);
+    gr.addColorStop(0,'rgba(40,120,255,1)');
+    gr.addColorStop(0.15,'rgba(30,80,255,0.8)');
+    gr.addColorStop(0.40,'rgba(20,40,255,0.3)');
+    gr.addColorStop(1,'rgba(0,0,0,0)');
+    g.fillStyle=gr; g.fillRect(0,0,256,256);
+  });
+  for(let i=0;i<MAX_ENEMY_LASERS;i++){
+    /* Core beam */
+    const beam=new THREE.Mesh(
+      new THREE.CylinderGeometry(0.45,0.45,1,6,1,true),
+      new THREE.MeshBasicMaterial({color:0xff3333,transparent:true,opacity:0,
+        blending:THREE.NormalBlending,depthWrite:false,side:THREE.DoubleSide,fog:false}));
+    beam.visible=false; beam.renderOrder=10; scene.add(beam);
+    /* Glow sprite around beam */
+    const glowSp=new THREE.Sprite(new THREE.SpriteMaterial({map:enemyLaserTexRed,
+      color:0xff4422,transparent:true,opacity:0,
+      blending:THREE.NormalBlending,depthWrite:false,fog:false}));
+    glowSp.visible=false; glowSp.renderOrder=9; scene.add(glowSp);
+    enemyLasers.push({mesh:beam,glow:glowSp,life:0,dir:new THREE.Vector3(),speed:350,type:'tie'});
+  }
+
+  /* ---------- Spawn an enemy ---------- */
+  function spawnEnemy(type){
+    if(enemies.length>=MAX_ENEMIES) return;
+    const T=TYPES[type];
+    const grp=(type==='tie')?buildTIE():buildCorvette();
+    /* Spawn at random position around the player */
+    const ang=Math.random()*TAU;
+    const elev=(Math.random()-0.5)*0.8;
+    const dist=T.approachDist*(0.7+Math.random()*0.6);
+    const spawnPos=P.clone()
+      .add(new THREE.Vector3(Math.cos(ang)*Math.cos(elev),Math.sin(elev),Math.sin(ang)*Math.cos(elev)).multiplyScalar(dist));
+    grp.position.copy(spawnPos);
+    /* ---- Subtle indicator dot around each enemy ---- */
+    const indicatorColor = type==='tie' ? 0x4488ff : 0xff6633;
+    const indicatorSize = type==='tie' ? 8 : 14;
+    const indicator=new THREE.Sprite(new THREE.SpriteMaterial({map:softTex,
+      color:indicatorColor,transparent:true,opacity:0.15,
+      blending:THREE.NormalBlending,depthWrite:false,fog:false}));
+    indicator.scale.setScalar(indicatorSize);
+    indicator.renderOrder=11;
+    grp.add(indicator);
+    scene.add(grp);
+    /* Decide a random orbit center near player for orbiting behavior */
+    const orbitCenter=P.clone().add(new THREE.Vector3(
+      (Math.random()-0.5)*60,(Math.random()-0.5)*30,(Math.random()-0.5)*60));
+    enemies.push({
+      type, grp, hp:T.hp, maxHp:T.hp,
+      state:'approach', /* approach | orbit | attack | flee | dying */
+      fireCooldown:Math.random()*T.fireRate,
+      stateTimer:0,
+      orbitCenter:orbitCenter,
+      orbitAngle:Math.random()*TAU,
+      orbitSpeed:0.4+Math.random()*0.4,
+      deathTimer:0,
+      indicator:indicator,
+      /* Smooth movement state */
+      smoothVel:new THREE.Vector3(),
+      driftPhase:Math.random()*TAU,
+      driftPhase2:Math.random()*TAU,
+    });
+  }
+
+  /* ---------- Explosion effect — subtle, realistic ---------- */
+  function spawnExplosion(pos,sz,col){
+    sz=sz*0.35; /* scale everything way down */
+    /* Primary flash */
+    const e=_explosionPool.find(x=>x.life<=0);
+    if(!e) return;
+    e.life=0.35; e.maxLife=0.35;
+    e.sprite.position.copy(pos);
+    e.sprite.visible=true;
+    e.sprite.material.color.setHex(col||0xffaa33);
+    e.sprite.material.opacity=0.45;
+    e.sprite.scale.setScalar(sz);
+    /* secondary white flash — smaller */
+    const e2=_explosionPool.find(x=>x.life<=0);
+    if(e2){
+      e2.life=0.15; e2.maxLife=0.15;
+      e2.sprite.position.copy(pos).add(new THREE.Vector3(
+        (Math.random()-0.5)*sz*0.2,(Math.random()-0.5)*sz*0.2,(Math.random()-0.5)*sz*0.2));
+      e2.sprite.visible=true;
+      e2.sprite.material.color.setHex(0xffffff);
+      e2.sprite.material.opacity=0.25;
+      e2.sprite.scale.setScalar(sz*0.3);
+    }
+  }
+
+  /* ---------- Fire enemy laser ---------- */
+  function fireEnemyLaser(enemy){
+    /* TIE fires 1 beam, Corvette fires 2-3 beams spread out */
+    const burstCount=enemy.type==='corvette'?2+Math.floor(Math.random()*2):1;
+    for(let b=0;b<burstCount;b++){
+      const el=enemyLasers.find(x=>x.life<=0);
+      if(!el) return;
+      el.life=0.9;
+      el.type=enemy.type;
+      el.mesh.visible=true;
+      el.mesh.material.opacity=0.6;
+      /* Different colors: TIE = electric blue, Corvette = hot orange-red */
+      if(enemy.type==='tie'){
+        el.mesh.material.color.setHex(0x4488ff);
+        el.mesh.scale.set(1,600,1);
+        if(el.glow){
+          el.glow.visible=true; el.glow.material.opacity=0.3;
+          el.glow.material.color.setHex(0x3399ff);
+          el.glow.material.map=enemyLaserTexBlue;
+        }
+      } else {
+        el.mesh.material.color.setHex(0xff6622);
+        el.mesh.scale.set(1,800,1);
+        if(el.glow){
+          el.glow.visible=true; el.glow.material.opacity=0.3;
+          el.glow.material.color.setHex(0xff4400);
+          el.glow.material.map=enemyLaserTexRed;
+        }
+      }
+      /* origin at enemy position */
+      const origin=enemy.grp.position.clone();
+      el.mesh.position.copy(origin);
+      /* aim at player with intentional inaccuracy */
+      const toPlayer=P.clone().sub(origin).normalize();
+      const playerLead=_playerVel.clone().multiplyScalar(0.06);
+      el.dir.copy(toPlayer).add(playerLead);
+      /* Spread per burst — wider for corvette multi-shot */
+      const baseSpread=enemy.type==='corvette'?0.18:0.12;
+      const burstSpread=burstCount>1?(b-(burstCount-1)/2)*0.12:0;
+      el.dir.x+=(Math.random()-0.5)*baseSpread + burstSpread;
+      el.dir.y+=(Math.random()-0.5)*baseSpread;
+      el.dir.z+=(Math.random()-0.5)*baseSpread;
+      el.dir.normalize();
+      el.mesh.lookAt(origin.clone().add(el.dir));
+      el.mesh.rotateX(Math.PI/2);
+      el.mesh.position.copy(origin).addScaledVector(el.dir,300);
+      if(el.glow){
+        el.glow.position.copy(origin).addScaledVector(el.dir,300);
+        el.glow.scale.set(14,14,1);
+      }
+    }
+  }
+
+  /* ---------- Damage player ---------- */
+  function damagePlayer(dmg){
+    if(!ENEMIES.playerHp) return;
+    if(ENEMIES.invincible>0) return;   /* invincibility frames after hit */
+    ENEMIES.playerHp=Math.max(0,ENEMIES.playerHp-dmg);
+    ENEMIES.invincible=0.5;            /* 0.5s invincibility after each hit */
+    ENEMIES.dmgCooldown=0;             /* reset regen timer */
+    /* screen shake effect via camera offset — brief */
+    ENEMIES.shakeTimer=0.15;
+    ENEMIES.shakeIntensity=dmg*0.3;
+    /* --- GAME OVER --- */
+    if(ENEMIES.playerHp<=0){
+      ENEMIES.gameOver=true;
+      /* Big explosion at ship */
+      spawnExplosion(P.clone(),12,0xff6633);
+      spawnExplosion(P.clone(),8,0xffaa22);
+      spawnExplosion(P.clone(),6,0xffffff);
+      /* Show game over screen */
+      const goEl=document.getElementById('gameOver');
+      goEl.style.display='flex';
+      document.getElementById('goScore').textContent='Score: '+ENEMIES.score;
+      document.getElementById('goKills').textContent='Ennemis détruits: '+ENEMIES.killCount;
+      document.getElementById('goWave').textContent='Vague: '+ENEMIES.wave;
+    }
+  }
+
+  /* ---------- Player stats ---------- */
+  /* ---------- Expose alive count ---------- */
+  ENEMIES.aliveCount=function(){ let c=0; for(const e of enemies){ if(e.state!=='dying') c++; } return c; };
+
+  ENEMIES.playerHp=100;
+  ENEMIES.playerMaxHp=100;
+  ENEMIES.score=0;
+  ENEMIES.killCount=0;
+  ENEMIES.wave=0;
+  ENEMIES.spawnTimer=2.0;  /* first wave after 2s */
+  ENEMIES.shakeTimer=0;
+  ENEMIES.shakeIntensity=0;
+  ENEMIES.gameOver=false;
+  ENEMIES.invincible=0;     /* brief invincibility after each hit (seconds) */
+  ENEMIES.dmgCooldown=0;    /* time since last hit — for HP regen */
+
+  /* ---------- Restart game ---------- */
+  ENEMIES.restart=function(){
+    ENEMIES.playerHp=ENEMIES.playerMaxHp;
+    ENEMIES.score=0; ENEMIES.killCount=0; ENEMIES.wave=0;
+    ENEMIES.spawnTimer=3.0; ENEMIES.gameOver=false;
+    ENEMIES.invincible=0; ENEMIES.dmgCooldown=0;
+    ENEMIES.cleanup();
+    document.getElementById('gameOver').style.display='none';
+  };
+
+  /* ---------- Update all enemies ---------- */
+  ENEMIES.update=function(dt){
+    if(!SHIP.freeFlight) return;
+    if(ENEMIES.gameOver) return;
+    /* Track player velocity for lead prediction */
+    _playerVel.copy(SHIP.group.position).sub(P).divideScalar(Math.max(dt,0.001));
+
+    /* --- Invincibility timer & HP regen --- */
+    if(ENEMIES.invincible>0) ENEMIES.invincible-=dt;
+    ENEMIES.dmgCooldown+=dt;
+    if(ENEMIES.dmgCooldown>3 && ENEMIES.playerHp<ENEMIES.playerMaxHp){
+      ENEMIES.playerHp=Math.min(ENEMIES.playerMaxHp, ENEMIES.playerHp+2*dt); /* 2 HP/s regen after 3s */
+    }
+
+    /* --- Spawn waves --- */
+    ENEMIES.spawnTimer-=dt;
+    if(ENEMIES.spawnTimer<=0){
+      ENEMIES.wave++;
+      const tieCount=Math.min(1+Math.floor(ENEMIES.wave/2),4);
+      const hasCorvette=ENEMIES.wave%5===0;
+      for(let i=0;i<tieCount;i++) spawnEnemy('tie');
+      if(hasCorvette) spawnEnemy('corvette');
+      ENEMIES.spawnTimer=Math.max(8,16-ENEMIES.wave*0.4);  /* slower spawns */
+    }
+
+    /* --- Camera shake --- */
+    if(ENEMIES.shakeTimer>0){
+      ENEMIES.shakeTimer-=dt;
+      const k=ENEMIES.shakeTimer/0.15;
+      const shx=(Math.random()-0.5)*ENEMIES.shakeIntensity*k;
+      const shy=(Math.random()-0.5)*ENEMIES.shakeIntensity*k;
+      camera.position.x+=shx;
+      camera.position.y+=shy;
+    }
+
+    /* --- Update each enemy --- */
+    for(let i=enemies.length-1;i>=0;i--){
+      const e=enemies[i];
+      const T=TYPES[e.type];
+      const toPlayer=new THREE.Vector3().subVectors(P,e.grp.position);
+      const dist=toPlayer.length();
+      toPlayer.normalize();
+
+      /* Pulsing indicator — subtle targeting dot */
+      if(e.indicator && e.state!=='dying'){
+        const pulse=0.15+0.1*Math.sin(Date.now()*0.006+i*1.7);
+        e.indicator.material.opacity=pulse;
+        /* Color shift: blue=orbit, orange=attack, red=flee */
+        if(e.state==='attack') e.indicator.material.color.setHex(0xff4444);
+        else if(e.state==='flee') e.indicator.material.color.setHex(0xff8800);
+        else e.indicator.material.color.setHex(0x4488ff);
+        /* Size — small dot, grows slightly when closer */
+        const closeness=THREE.MathUtils.clamp(1-dist/T.approachDist,0,1);
+        const baseScale=e.type==='tie'?8:14;
+        e.indicator.scale.setScalar(baseScale*(1+closeness*0.8));
+      }
+
+      if(e.state==='dying'){
+        e.deathTimer-=dt;
+        /* Flash and shrink */
+        const k=Math.max(0,e.deathTimer/0.6);
+        e.grp.visible=k>0 && Math.sin(k*50)>0;
+        if(k<=0){
+          scene.remove(e.grp);
+          enemies.splice(i,1);
+          ENEMIES.score+=T.score;
+          ENEMIES.killCount++;
+        }
+        continue;
+      }
+
+      if(e.state==='flee'){
+        /* Move away from player — smooth */
+        const fleeDir=toPlayer.clone().negate();
+        e.smoothVel.lerp(fleeDir.multiplyScalar(T.speed*1.2),Math.min(1,dt*3));
+        e.grp.position.addScaledVector(e.smoothVel,dt);
+        /* Smooth facing */
+        const lookQ=new THREE.Quaternion();
+        const lookM=new THREE.Matrix4().lookAt(e.grp.position,P,new THREE.Vector3(0,1,0));
+        lookQ.setFromRotationMatrix(lookM);
+        e.grp.quaternion.slerp(lookQ,Math.min(1,dt*4));
+        if(dist>T.approachDist*2||e.hp<=0){
+          e.state='dying'; e.deathTimer=0.6;
+          spawnExplosion(e.grp.position,T.scale*0.8,0xff6633);
+          continue;
+        }
+      }
+      else if(e.state==='approach'){
+        /* Move toward orbit distance — smooth acceleration */
+        const desired=toPlayer.clone().multiplyScalar(T.speed);
+        e.smoothVel.lerp(desired,Math.min(1,dt*2));
+        e.grp.position.addScaledVector(e.smoothVel,dt);
+        /* Smooth facing */
+        const lookQ=new THREE.Quaternion();
+        const lookM=new THREE.Matrix4().lookAt(e.grp.position,P,new THREE.Vector3(0,1,0));
+        lookQ.setFromRotationMatrix(lookM);
+        e.grp.quaternion.slerp(lookQ,Math.min(1,dt*3));
+        if(dist<=T.orbitDist*1.2){
+          e.state='orbit';
+          e.orbitCenter.copy(P);
+          e.orbitAngle=Math.atan2(e.grp.position.z-P.z,e.grp.position.x-P.x);
+        }
+      }
+      else if(e.state==='orbit'){
+        /* Circle the player — smooth position lerp */
+        e.orbitAngle+=e.orbitSpeed*dt;
+        const targetX=e.orbitCenter.x+Math.cos(e.orbitAngle)*T.orbitDist;
+        const targetZ=e.orbitCenter.z+Math.sin(e.orbitAngle)*T.orbitDist;
+        const targetY=e.orbitCenter.y+Math.sin(e.orbitAngle*2)*T.orbitDist*0.2;
+        const target=new THREE.Vector3(targetX,targetY,targetZ);
+        /* Direct smooth position interpolation */
+        const lerpF=1-Math.exp(-4*dt);
+        e.grp.position.lerp(target,lerpF);
+        /* Smooth facing */
+        const lookQ=new THREE.Quaternion();
+        const lookM=new THREE.Matrix4().lookAt(e.grp.position,P,new THREE.Vector3(0,1,0));
+        lookQ.setFromRotationMatrix(lookM);
+        e.grp.quaternion.slerp(lookQ,Math.min(1,dt*3));
+        /* Fire while orbiting — slower rate */
+        e.fireCooldown-=dt;
+        if(e.fireCooldown<=0){
+          fireEnemyLaser(e);
+          e.fireCooldown=T.fireRate*2.0*(0.8+Math.random()*0.4);
+        }
+        /* Transition to attack sometimes */
+        e.stateTimer+=dt;
+        if(e.stateTimer>3+Math.random()*4){
+          e.state='attack'; e.stateTimer=0;
+        }
+      }
+      else if(e.state==='attack'){
+        /* Face player and fire — smooth tracking */
+        const lookQ=new THREE.Quaternion();
+        const lookM=new THREE.Matrix4().lookAt(e.grp.position,P,new THREE.Vector3(0,1,0));
+        lookQ.setFromRotationMatrix(lookM);
+        e.grp.quaternion.slerp(lookQ,Math.min(1,dt*4));
+        e.fireCooldown-=dt;
+        if(e.fireCooldown<=0){
+          fireEnemyLaser(e);
+          /* Corvette gets bonus burst shots */
+          if(e.type==='corvette' && Math.random()<0.25) fireEnemyLaser(e);
+          e.fireCooldown=T.fireRate*(0.6+Math.random()*0.3);
+        }
+        /* Smooth sine-based drift — not random per-frame */
+        e.driftPhase+=dt*1.2;
+        e.driftPhase2+=dt*0.8;
+        const driftX=Math.sin(e.driftPhase)*T.speed*0.25;
+        const driftY=Math.sin(e.driftPhase2*1.3)*T.speed*0.08;
+        const driftZ=Math.cos(e.driftPhase*0.7)*T.speed*0.25;
+        e.smoothVel.set(driftX,driftY,driftZ);
+        e.grp.position.addScaledVector(e.smoothVel,dt);
+        e.stateTimer+=dt;
+        if(e.stateTimer>4+Math.random()*3){
+          e.state='orbit'; e.stateTimer=0;
+          e.orbitCenter.copy(P);
+          e.orbitAngle=Math.atan2(e.grp.position.z-P.z,e.grp.position.x-P.x);
+        }
+      }
+
+      /* Flee when very low HP — only for corvettes (shouldn't happen with 1-hit, but safe) */
+      if(e.hp<=0&&e.state!=='dying'&&e.state!=='flee'){
+        e.state='dying'; e.deathTimer=0.6;
+          spawnExplosion(e.grp.position,T.scale*0.8,0xffaa33);
+      }
+    }
+
+    /* --- Update enemy lasers --- */
+    for(const el of enemyLasers){
+      if(el.life<=0) continue;
+      el.life-=dt;
+      if(el.life<=0){ el.mesh.visible=false; if(el.glow) el.glow.visible=false; continue; }
+      el.mesh.position.addScaledVector(el.dir,el.speed*dt);
+      el.mesh.material.opacity=Math.min(0.5,el.life*1.2);
+      if(el.glow){
+        el.glow.position.copy(el.mesh.position);
+        el.glow.material.opacity=Math.min(0.2,el.life*0.8);
+      }
+      /* Check collision with player */
+      const dToPlayer=el.mesh.position.distanceTo(P);
+      if(dToPlayer<14){
+        /* Dodge check — 70% avoidance when spinning (E/Q) */
+        if(SHIP.dodging && Math.random()<0.70){
+          /* Deflected! Spark effect at near-miss */
+          const sparkCol=el.type==='tie'?0x4488ff:0xff6622;
+          spawnExplosion(el.mesh.position.clone(),1,sparkCol);
+          el.life=0; el.mesh.visible=false; if(el.glow) el.glow.visible=false;
+          continue;
+        }
+        const dmg=el.type==='corvette'?TYPES.corvette.damage:TYPES.tie.damage;
+        damagePlayer(dmg);
+        const hitCol=el.type==='tie'?0x4488ff:0xff4422;
+        el.life=0; el.mesh.visible=false; if(el.glow) el.glow.visible=false;
+        spawnExplosion(el.mesh.position.clone(),1.5,hitCol);
+      }
+    }
+
+    /* --- Check player laser hits on enemies --- */
+    if(SHIP.lastHit){
+      const hitObj=SHIP.lastHit.object;
+      for(let i=enemies.length-1;i>=0;i--){
+        const e=enemies[i];
+        if(e.state==='dying') continue;
+        /* Check if hit object is part of this enemy */
+        let found=false;
+        e.grp.traverse(c=>{ if(c===hitObj) found=true; });
+        if(found){
+          e.hp=0;
+          /* Small spark at hit point */
+          spawnExplosion(SHIP.lastHit.point.clone(),3,0xffaa33);
+          /* Death puff at enemy center */
+          e.state='dying'; e.deathTimer=0.6;
+          spawnExplosion(e.grp.position.clone(),6,0xff6633);
+          showScorePopup(e.grp.position.clone(),TYPES[e.type].score);
+          SHIP.lastHit=null;
+          break;
+        }
+      }
+    }
+
+    /* --- Update explosion pool --- */
+    for(const e of _explosionPool){
+      if(e.life<=0) continue;
+      e.life-=dt;
+      const k=Math.max(0,e.life/e.maxLife);
+      e.sprite.material.opacity=k*0.6;
+      e.sprite.scale.multiplyScalar(1+dt*0.8); /* very gentle expansion */
+      if(e.life<=0) e.sprite.visible=false;
+    }
+
+    /* --- Update score popups --- */
+    for(const sp of _scorePopups){
+      if(sp.life<=0) continue;
+      sp.life-=dt;
+      const k=Math.max(0,sp.life/sp.maxLife);
+      sp.sprite.material.opacity=k;
+      sp.sprite.position.y+=sp.velY*dt;
+      sp.velY*=0.96; /* slow down float */
+      sp.sprite.scale.multiplyScalar(1-dt*0.3); /* shrink slightly */
+      if(sp.life<=0) sp.sprite.visible=false;
+    }
+  };
+
+  /* ---- ENEMIES cleanup — clears enemy-side effects ---- */
+  ENEMIES.cleanup=function(){
+    /* Clear explosion pool */
+    for(const e of _explosionPool){
+      e.life=0; e.sprite.visible=false; e.sprite.material.opacity=0;
+      e.sprite.scale.setScalar(1);
+    }
+    /* Clear score popups */
+    for(const sp of _scorePopups){
+      sp.life=0; sp.sprite.visible=false; sp.sprite.material.opacity=0;
+      sp.sprite.scale.setScalar(1);
+    }
+    /* Clear enemy lasers */
+    for(const el of enemyLasers){
+      el.life=0; el.mesh.visible=false; if(el.glow) el.glow.visible=false;
+    }
+    /* Clear enemies from scene */
+    for(const e of enemies){
+      scene.remove(e.grp);
+      if(e.indicator) e.indicator.visible=false;
+    }
+    enemies.length=0;
+  };
+})();
+
+/* Game over restart — button click and Enter key */
+document.getElementById('goRestart').addEventListener('click',()=>ENEMIES.restart());
+document.addEventListener('keydown',e=>{
+  if(e.key==='Enter'&&ENEMIES.gameOver) ENEMIES.restart();
+});
+
+/* Mouse click fires laser when in free flight */
+renderer.domElement.addEventListener('mousedown',e=>{
+  if(SHIP.freeFlight&&viewMode==='ship'&&e.button===0){
+    /* Re-request pointer lock if lost */
+    if(!document.pointerLockElement){
+      try{ renderer.domElement.requestPointerLock(); }catch(ex){}
+    }
+    SHIP.fire(); e.preventDefault();
+  }
+});
 const VIEW_IDS=['galaxy','system','earth','bh','m13','m31','cluster','skymap','ship'];
 let viewMode='galaxy',flight=null,simTime=Date.now();
 let tourIdx=-1,tourTimer=0,touring=false;
@@ -6010,7 +9371,7 @@ function tick(){
      redescendre, sinon pousser le curseur assombrit l'image au lieu de
      l'eclaircir. Au-dela de 100 %, c'est l'eclairement (softSf) qui continue
      de monter, de facon sous-lineaire pour ne pas bruler les hautes lumieres. */
-  renderer.toneMappingExposure=0.85*(0.40+0.60*Math.min(sf,1))*expoK;
+  renderer.toneMappingExposure=1.1*(0.40+0.60*Math.min(sf,1))*expoK;
   /* the photosphere itself brightens / fades */
   sunShaderMat.uniforms.uBright.value=0.12+0.88*Math.min(sfV,2.2);
   const coronaK=Math.min(sfV,1.8);
@@ -6175,9 +9536,7 @@ function tick(){
 
   renderPass.scene=scene;
   updateLOD();
-  /* ombres recalculees une image sur six */
-  _shadowTick=(_shadowTick+1)%6;
-  renderer.shadowMap.needsUpdate=(_shadowTick===0);
+   /* shadows auto-update each frame */
   if(flight){
     flight.el+=dt; const k=easeIO(Math.min(1,flight.el/flight.dur));
     if(!flight.p0){ flight.p0=camera.position.clone(); flight.t0=controls.target.clone(); }
@@ -6190,11 +9549,20 @@ function tick(){
     followPlanet.anchor.getWorldPosition(FOL);
     FOL2.subVectors(FOL,controls.target);
     camera.position.add(FOL2); controls.target.copy(FOL); }
-  else if(viewMode==='ship'){ /* poursuite : on translate la caméra du même
-      vecteur que le vaisseau, ce qui laisse l'utilisateur libre d'orbiter
-      autour de lui pendant le vol */
-    TMP3.subVectors(SHIP.position,controls.target);
-    camera.position.add(TMP3); controls.target.copy(SHIP.position); }
+  else if(viewMode==='ship'){
+    if(SHIP.freeFlight){
+      /* Tight chase camera — Counter-Strike combat feel */
+      const fwd=new THREE.Vector3(0,0,1).applyQuaternion(SHIP.group.quaternion);
+      const up=new THREE.Vector3(0,1,0).applyQuaternion(SHIP.group.quaternion);
+      const idealCamPos=SHIP.position.clone()
+        .addScaledVector(fwd,-30).addScaledVector(up,8);
+      camera.position.lerp(idealCamPos,Math.min(1,dt*6));
+      controls.target.lerp(SHIP.position.clone().addScaledVector(fwd,40),Math.min(1,dt*8));
+    } else {
+      TMP3.subVectors(SHIP.position,controls.target);
+      camera.position.add(TMP3); controls.target.copy(SHIP.position);
+    }
+  }
 
   controls.update();
   camera.updateMatrixWorld();
